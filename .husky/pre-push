@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+
+# Bloqueia push de branches fora do padrao git-flow.
+# Permitidos: main, develop, feature/*, release/*, hotfix/*, bugfix/*, support/*, chore/*, docs/*
+
+valid_re='^(main|develop|(feature|release|hotfix|bugfix|support|chore|docs)/.+)$'
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+if [ -z "$branch" ]; then
+  exit 0
+fi
+
+if ! echo "$branch" | grep -Eq "$valid_re"; then
+  printf '\n\033[31m✗ Branch "%s" nao segue o padrao git-flow.\033[0m\n\n' "$branch"
+  echo "Prefixos permitidos:"
+  echo "  feature/<nome>   release/<versao>   hotfix/<nome>"
+  echo "  bugfix/<nome>    support/<nome>     chore/<nome>    docs/<nome>"
+  echo ""
+  echo "Renomeie com:  git branch -m <novo-nome>"
+  echo ""
+  exit 1
+fi
