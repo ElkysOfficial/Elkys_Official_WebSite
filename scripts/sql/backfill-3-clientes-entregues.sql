@@ -8,19 +8,20 @@
 -- pagando há meses, mas o portal mostra "Aguardando aceite" em tudo.
 --
 -- Premissas:
---   - Cliente identificado pelo primeiro nome (case-insensitive).
---   - Cada cliente tem 1 projeto ativo. Se tiver mais de um, o script
---     atualiza TODOS e mostra warning no SELECT final — revise antes.
+--   - Projetos identificados por UUID explícito (não por nome) para evitar
+--     falsos positivos por substring match (ex: "josefina", "alexandrina").
 --   - Data retroativa do aceite: 60 dias atrás (ajustar se quiser).
 --   - Usa o admin atual (auth.uid()) como accepted_by / validated_by_internal.
 --
--- IMPORTANTE: Roda dentro de transação. Se algo parecer errado no SELECT
--- final, ROLLBACK e ajuste os WHEREs.
+-- IMPORTANTE: Roda dentro de transação. Sanity check no início garante que
+-- os 3 IDs existem e batem com os nomes esperados antes de qualquer escrita.
+-- Se algo parecer errado no SELECT final, ROLLBACK.
 -- ============================================================================
 
 BEGIN;
 
--- Passo 0: variáveis. Ajuste as datas e nomes se necessário.
+-- Passo 0: variáveis. Project IDs explícitos — alterar aqui se precisar
+-- re-executar para outros clientes.
 DO $$
 DECLARE
   v_onboarding_date  timestamptz := now() - interval '90 days';
@@ -28,9 +29,13 @@ DECLARE
   v_contract_date    timestamptz := now() - interval '85 days';
   v_acceptance_date  timestamptz := now() - interval '60 days';
   v_admin_uid        uuid := auth.uid();  -- assume admin rodando o script
-  v_client_names     text[] := ARRAY['ramiro', 'alexandre', 'jose', 'josé'];
+  v_project_ids      uuid[] := ARRAY[
+    '4fd66479-3c4a-4c8e-a467-17ef29f8f432'::uuid,  -- Alexandre da Silva de Jesus (AK Produções)
+    'aab4f039-5a93-4956-91ff-23c59d39fb43'::uuid,  -- José Pedro Ferreira
+    'ae6e8cb1-79e6-4c84-baf0-8511e639bdfd'::uuid   -- Ramiro Francisco da Silva Junior (1 Um Print)
+  ];
+  v_found_count      int;
   v_project          RECORD;
-  v_contract         RECORD;
   v_onboarding_done  jsonb := jsonb_build_object(
     'scope_confirmed',    jsonb_build_object('done', true, 'owner', 'elkys',         'note', 'Backfill retroativo — projeto fechado antes do checklist existir'),
     'materials_received', jsonb_build_object('done', true, 'owner', 'cliente',       'note', 'Backfill retroativo'),
@@ -40,13 +45,22 @@ DECLARE
   );
 BEGIN
 
-  -- Loop por cada projeto dos 3 clientes
+  -- Sanity check: garantir que todos os UUIDs existem antes de qualquer escrita.
+  SELECT count(*) INTO v_found_count
+    FROM public.projects
+   WHERE id = ANY(v_project_ids);
+
+  IF v_found_count <> array_length(v_project_ids, 1) THEN
+    RAISE EXCEPTION 'sanity check falhou: esperado % projetos, encontrado %. abortando para nao escrever em registro errado',
+      array_length(v_project_ids, 1), v_found_count;
+  END IF;
+
+  -- Loop por cada projeto (identificação por UUID explícito).
   FOR v_project IN
     SELECT p.id AS project_id, p.client_id, c.full_name AS client_name
       FROM public.projects p
       JOIN public.clients c ON c.id = p.client_id
-     WHERE lower(c.full_name)                       ~ ANY(v_client_names)
-        OR lower(coalesce(c.nome_fantasia, ''))     ~ ANY(v_client_names)
+     WHERE p.id = ANY(v_project_ids)
   LOOP
     RAISE NOTICE 'Processando projeto % do cliente %', v_project.project_id, v_project.client_name;
 
@@ -117,8 +131,11 @@ SELECT
     WHERE pc.project_id = p.id) AS contratos_total
   FROM public.projects p
   JOIN public.clients c ON c.id = p.client_id
- WHERE lower(c.full_name)                       ~ ANY(ARRAY['ramiro','alexandre','jose','josé'])
-    OR lower(coalesce(c.nome_fantasia, ''))     ~ ANY(ARRAY['ramiro','alexandre','jose','josé'])
+ WHERE p.id IN (
+   '4fd66479-3c4a-4c8e-a467-17ef29f8f432'::uuid,
+   'aab4f039-5a93-4956-91ff-23c59d39fb43'::uuid,
+   'ae6e8cb1-79e6-4c84-baf0-8511e639bdfd'::uuid
+ )
  ORDER BY c.full_name;
 
 -- Se o resultado bater com o esperado:
