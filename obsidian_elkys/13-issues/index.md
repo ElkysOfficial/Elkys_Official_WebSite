@@ -15,8 +15,8 @@ tags: [issues, debt, moc]
 | H2  | [[no-tests-units-integration]] — Apenas E2E, sem Vitest                   | testing        |
 | H3  | [[security-roles-in-db]] — Roles em `user_roles`, não JWT (SPOF)          | auth           |
 | H4  | [[security-csp-missing]] — Sem Content-Security-Policy                    | security       |
-| H5  | [[charges-status-agendada-stuck]] — `agendada → pendente` só no front-end | data-integrity |
-| H6  | [[dead-pages]] — 9 páginas órfãs em `src/pages/`                          | tech-debt      |
+| ~~H5~~ | ✅ Resolvido — [[_resolved/charges-status-agendada-stuck]] (cron promove `agendada → pendente`) | data-integrity |
+| ~~H6~~ | ✅ Resolvido — [[_resolved/dead-pages]] (páginas reorganizadas em `src/pages/portal/admin/`)    | tech-debt      |
 | H7  | [[colors-hardcoded-tasks]] — Tasks.tsx com 8+ cores Tailwind cruas        | DS             |
 | H8  | [[no-staging-environment]] — `develop` sem host separado                  | DX/safety      |
 
