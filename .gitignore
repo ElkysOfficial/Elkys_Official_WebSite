@@ -34,3 +34,6 @@ e2e/.env
 # Email previews (gerados por scripts/preview-emails.mjs)
 previews/
 scripts/.cache/
+
+# Claude Code (config local da maquina, nao versionado)
+.claude/
