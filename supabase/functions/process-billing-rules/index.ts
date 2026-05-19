@@ -6,6 +6,7 @@ import {
 } from "../_shared/auth.ts";
 import { buildEmail, sendEmail, getTimeGreeting } from "../_shared/email-template.ts";
 import { escapeAndFormat } from "../_shared/validation.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -141,6 +142,18 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ ok: true, sent: 0, skipped: true, reason: "Already sent today" });
       }
 
+      // Rastreio da comunicacao: registra a communication, encurta o link
+      // do botao e injeta o pixel de abertura. Modo no-op se a gravacao
+      // falhar -- nunca bloqueia o envio do e-mail.
+      const tracking = await createCommunication({
+        kind: forceTemplateType === "agradecimento" ? "installment_paid" : forceTemplateType,
+        recipientEmail: client.email,
+        clientId: charge.client_id,
+        entityType: "charge",
+        entityId: charge.id,
+      });
+      const portalHref = await tracking.shorten(`${portalUrl}/financeiro`);
+
       const subject = replaceVars(tpl.subject, vars);
       const bodyText = replaceVars(tpl.body, vars);
       const html = buildEmail({
@@ -148,10 +161,12 @@ Deno.serve(async (req: Request) => {
         title: "Elkys - Aviso Financeiro",
         greeting: `${getTimeGreeting()}, ${clientName}`,
         body: `<p style="margin:0 0 18px 0;font-size:14px;line-height:22px;color:#333333;">${escapeAndFormat(bodyText)}</p>`,
-        button: { label: "Acessar portal", href: `${portalUrl}/financeiro` },
+        button: { label: "Acessar portal", href: portalHref },
+        pixelUrl: tracking.pixelUrl,
       });
 
       const result = await sendEmail({ to: client.email, subject, html });
+      await tracking.finalize(result.ok);
 
       const { error: logError } = await supabase.from("billing_actions_log").insert({
         charge_id: charge.id,
@@ -272,6 +287,18 @@ Deno.serve(async (req: Request) => {
         let errorMessage: string | null = null;
 
         if (rule.action_type === "email" && template) {
+          // Rastreio: lembrete (trigger negativo/zero) entra como invoice_due,
+          // cobranca em atraso (trigger positivo) como charge_overdue -- assim
+          // aparece no dashboard de Comunicacoes com pixel e link curto.
+          const tracking = await createCommunication({
+            kind: rule.trigger_days > 0 ? "charge_overdue" : "invoice_due",
+            recipientEmail: client.email,
+            clientId: charge.client_id,
+            entityType: "charge",
+            entityId: charge.id,
+          });
+          const portalHref = await tracking.shorten(`${portalUrl}/financeiro`);
+
           const subject = replaceVars(template.subject, vars);
           const bodyText = replaceVars(template.body, vars);
 
@@ -282,11 +309,13 @@ Deno.serve(async (req: Request) => {
             body: `<p style="margin:0 0 18px 0;font-size:14px;line-height:22px;color:#333333;">${escapeAndFormat(bodyText)}</p>`,
             button: {
               label: "Acessar portal",
-              href: `${portalUrl}/financeiro`,
+              href: portalHref,
             },
+            pixelUrl: tracking.pixelUrl,
           });
 
           const result = await sendEmail({ to: client.email, subject, html });
+          await tracking.finalize(result.ok);
           if (!result.ok) {
             status = "falha";
             errorMessage = result.error ?? "Unknown error";

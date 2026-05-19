@@ -60,6 +60,7 @@ const KIND_LABELS: Record<string, string> = {
   ticket_updated: "Ticket atualizado",
   notification: "Comunicado",
   team_welcome: "Boas-vindas (equipe)",
+  password_reset: "Redefinição de senha",
 };
 
 function kindLabel(kind: string): string {

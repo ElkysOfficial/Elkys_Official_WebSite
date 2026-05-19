@@ -16,6 +16,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { getGenericGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   email: string;
@@ -61,6 +62,14 @@ serve(async (req) => {
 
     const resetLink = data.properties.action_link;
 
+    // Rastreio de abertura/clique. O botao usa o link curto; a nota mantem
+    // o link cru para copiar e colar (mais confiavel num e-mail de seguranca).
+    const tracking = await createCommunication({
+      kind: "password_reset",
+      recipientEmail: email,
+    });
+    const buttonHref = await tracking.shorten(resetLink);
+
     const html = buildEmail({
       preheader: "Solicitação de redefinição de senha recebida.",
       title: "Redefinição de senha",
@@ -71,12 +80,13 @@ serve(async (req) => {
       `,
       button: {
         label: "Redefinir senha",
-        href: resetLink,
+        href: buttonHref,
       },
       warning:
         "Caso o(a) senhor(a) não tenha solicitado esta redefinição, pode ignorar este e-mail com segurança — a senha permanece inalterada.",
       note: `Caso o botão não funcione, copie e cole este endereço no navegador: <a href="${resetLink}" style="word-break:break-all;">${resetLink}</a>`,
       showSecurityNote: true,
+      pixelUrl: tracking.pixelUrl,
     });
 
     const result = await sendEmail({
@@ -84,6 +94,8 @@ serve(async (req) => {
       subject: "Redefinição de senha do Portal Elkys",
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

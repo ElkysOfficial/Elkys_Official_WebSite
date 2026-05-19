@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS, getTimeGreeting } from "../_shared/email-template.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
@@ -92,6 +93,15 @@ serve(async (req) => {
         )
         .join("");
 
+      const tracking = await createCommunication({
+        kind: "client_action",
+        recipientEmail: client.email,
+        clientId: group.client_id,
+        entityType: "client",
+        entityId: group.client_id,
+      });
+      const projectsHref = await tracking.shorten(`${PORTAL_URL}/projetos`);
+
       const html = buildEmail({
         preheader: `Você tem ${group.steps.length} solicitação(ões) pendente(s) que precisam da sua atenção.`,
         title: "Lembrete: solicitações pendentes",
@@ -106,9 +116,10 @@ serve(async (req) => {
         `,
         button: {
           label: "Acessar meus projetos →",
-          href: `${PORTAL_URL}/projetos`,
+          href: projectsHref,
         },
         note: "Responder dentro do prazo evita atrasos nas entregas do seu projeto.",
+        pixelUrl: tracking.pixelUrl,
       });
 
       const result = await sendEmail({
@@ -116,6 +127,8 @@ serve(async (req) => {
         subject: `Lembrete: ${group.steps.length} solicitação(ões) pendente(s)`,
         html,
       });
+
+      await tracking.finalize(result.ok);
 
       if (result.ok) sentCount++;
 

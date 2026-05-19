@@ -320,7 +320,27 @@ function FinanceRevenueTab({
         source_id: charge.id,
       });
     } catch {
-      /* silencioso — falha de timeline nao bloqueia o fluxo principal */
+      /* silencioso: falha de timeline nao bloqueia o fluxo principal */
+    }
+
+    // Confirmacao de pagamento por e-mail, com rastreio (mesmo fluxo do
+    // editor completo em handleSaveCharge). Best-effort: se o envio falhar,
+    // avisa mas nao reverte o pagamento nem bloqueia o fluxo.
+    try {
+      const headers = await getSupabaseFunctionAuthHeaders();
+      const { error: billingError } = await supabase.functions.invoke("process-billing-rules", {
+        body: {
+          triggered_by: "manual",
+          single_charge_id: charge.id,
+          force_template_type: "agradecimento",
+        },
+        headers,
+      });
+      if (billingError) {
+        toast.warning("Cobrança paga, mas a confirmação por e-mail não foi enviada ao cliente.");
+      }
+    } catch {
+      toast.warning("Cobrança paga, mas a confirmação por e-mail não foi enviada ao cliente.");
     }
 
     setQuickPayingId(null);
@@ -571,10 +591,7 @@ function FinanceRevenueTab({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu
-            onExportCSV={handleChargeExportCSV}
-            onExportPDF={handleChargeExportPDF}
-          />
+          <ExportMenu onExportCSV={handleChargeExportCSV} onExportPDF={handleChargeExportPDF} />
           <Link to="/portal/admin/projetos" className={buttonVariants({ variant: "outline" })}>
             Ver projetos
           </Link>

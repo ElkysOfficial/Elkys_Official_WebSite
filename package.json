@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs",
-    "build:min": "cross-env MINIFY=true vite build && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs",
-    "build:dev": "vite build --mode development && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs",
+    "build": "vite build && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs && node scripts/copy-lnk-proxy.cjs",
+    "build:min": "cross-env MINIFY=true vite build && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs && node scripts/copy-lnk-proxy.cjs",
+    "build:dev": "vite build --mode development && node scripts/generate-sitemap.cjs && node scripts/prerender.cjs && node scripts/copy-htaccess.cjs && node scripts/copy-lnk-proxy.cjs",
     "preview": "vite preview",
     "update-logos": "node scripts/update-logos.cjs",
     "preview:emails": "node scripts/preview-emails.mjs",
