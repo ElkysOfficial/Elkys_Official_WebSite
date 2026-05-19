@@ -53,6 +53,7 @@ tags: [database, schema]
 - `notifications` + `notification_recipients`
 - `admin_notifications`
 - `team_tasks`
+- `communications` + `tracked_links` + `tracking_events` — rastreio de e-mail (abertura/clique); ver [[../03-features/communication-tracking]]
 
 ## Auditoria
 

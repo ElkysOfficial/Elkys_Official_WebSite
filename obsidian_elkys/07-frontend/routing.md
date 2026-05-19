@@ -7,7 +7,7 @@ tags: [frontend, routing, guards]
 
 ## Contexto
 
-React Router 6.26. Definição em `src/App.tsx` (root) + `src/PortalRoutes.tsx` (porta de entrada do `/portal/*`). Total: **56 rotas** (9 públicas + 27 admin + 10 cliente + 2 auth-flow + 1 fallback + redirects).
+React Router 6.26. Definição em `src/App.tsx` (root) + `src/PortalRoutes.tsx` (porta de entrada do `/portal/*`). Total: **57 rotas** (9 públicas + 28 admin + 10 cliente + 2 auth-flow + 1 fallback + redirects).
 
 ## Mapa
 
@@ -21,7 +21,7 @@ React Router 6.26. Definição em `src/App.tsx` (root) + `src/PortalRoutes.tsx` 
 
 Guard chain: `ProtectedRoute(admin)` → `MustChangePasswordGuardAdmin` → `AdminLayout` → `PortalRoleGuard` (per-route).
 
-27 páginas, agrupadas:
+28 páginas, agrupadas:
 
 - **Dashboard**: `/portal/admin` (admin_super, admin)
 - **CRM**: `/crm`, `/leads/:id`, `/propostas`, `/propostas/nova`, `/propostas/:id`, `/pipeline`
@@ -31,7 +31,7 @@ Guard chain: `ProtectedRoute(admin)` → `MustChangePasswordGuardAdmin` → `Adm
 - **Equipe**: `/equipe`, `/equipe/novo`, `/equipe/:id/editar`
 - **Marketing**: `/calendario`, `/calendario/:domain`, `/tarefas`, `/tarefas/:domain`
 - **Documentos**: `/documentos/marketing-design`, `/documentos/desenvolvedor`
-- **Sistema**: `/audit-log`, `/suporte`, `/notificacoes`, `/perfil`, `/alterar-senha`
+- **Sistema**: `/audit-log`, `/suporte`, `/notificacoes`, `/comunicacoes`, `/perfil`, `/alterar-senha`
 
 Lista completa com matriz de roles em [[../10-security/rls-model]] e `docs/PERMISSIONS.md`.
 

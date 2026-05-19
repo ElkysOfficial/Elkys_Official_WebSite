@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   client_id: string;
@@ -77,6 +78,15 @@ serve(async (req) => {
         ? document_url
         : `${PORTAL_URL}/documentos`;
 
+    const tracking = await createCommunication({
+      kind: "document_added",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "document",
+      entityId: null,
+    });
+    const documentHrefTracked = await tracking.shorten(documentHref);
+
     const html = buildEmail({
       preheader: `${typeLabel}: ${document_label} — disponível no portal.`,
       title: "Novo documento disponível",
@@ -94,8 +104,9 @@ serve(async (req) => {
       },
       button: {
         label: document_url ? "Abrir documento" : "Acessar documentos",
-        href: documentHref,
+        href: documentHrefTracked,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Para dúvidas sobre o documento, a equipe permanece à disposição pelo portal.",
     });
 
@@ -104,6 +115,8 @@ serve(async (req) => {
       subject: `Novo documento disponível — ${document_label}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

@@ -637,6 +637,53 @@ export type Database = {
         };
         Relationships: [];
       };
+      communications: {
+        Row: {
+          client_id: string | null;
+          created_at: string;
+          email_status: string;
+          entity_id: string | null;
+          entity_type: string | null;
+          id: string;
+          kind: string;
+          recipient_email: string | null;
+          recipient_phone: string | null;
+          whatsapp_status: string | null;
+        };
+        Insert: {
+          client_id?: string | null;
+          created_at?: string;
+          email_status?: string;
+          entity_id?: string | null;
+          entity_type?: string | null;
+          id?: string;
+          kind: string;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          whatsapp_status?: string | null;
+        };
+        Update: {
+          client_id?: string | null;
+          created_at?: string;
+          email_status?: string;
+          entity_id?: string | null;
+          entity_type?: string | null;
+          id?: string;
+          kind?: string;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          whatsapp_status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "communications_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       documents: {
         Row: {
           archived_at: string | null;
@@ -2224,6 +2271,89 @@ export type Database = {
             columns: ["project_id"];
             isOneToOne: false;
             referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tracked_links: {
+        Row: {
+          channel: string;
+          communication_id: string;
+          created_at: string;
+          id: string;
+          slug: string;
+          target_url: string;
+        };
+        Insert: {
+          channel?: string;
+          communication_id: string;
+          created_at?: string;
+          id?: string;
+          slug: string;
+          target_url: string;
+        };
+        Update: {
+          channel?: string;
+          communication_id?: string;
+          created_at?: string;
+          id?: string;
+          slug?: string;
+          target_url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tracked_links_communication_id_fkey";
+            columns: ["communication_id"];
+            isOneToOne: false;
+            referencedRelation: "communications";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tracking_events: {
+        Row: {
+          channel: string;
+          communication_id: string;
+          created_at: string;
+          event_type: string;
+          id: string;
+          ip: string | null;
+          tracked_link_id: string | null;
+          user_agent: string | null;
+        };
+        Insert: {
+          channel?: string;
+          communication_id: string;
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          ip?: string | null;
+          tracked_link_id?: string | null;
+          user_agent?: string | null;
+        };
+        Update: {
+          channel?: string;
+          communication_id?: string;
+          created_at?: string;
+          event_type?: string;
+          id?: string;
+          ip?: string | null;
+          tracked_link_id?: string | null;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tracking_events_communication_id_fkey";
+            columns: ["communication_id"];
+            isOneToOne: false;
+            referencedRelation: "communications";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tracking_events_tracked_link_id_fkey";
+            columns: ["tracked_link_id"];
+            isOneToOne: false;
+            referencedRelation: "tracked_links";
             referencedColumns: ["id"];
           },
         ];

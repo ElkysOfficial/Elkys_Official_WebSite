@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   client_id: string;
@@ -94,6 +95,15 @@ serve(async (req) => {
         <p style="margin:0;font-size:14px;line-height:22px;color:#333333;">Os detalhes completos encontram-se disponíveis no portal.</p>
       `;
 
+    const tracking = await createCommunication({
+      kind: "project_stage",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "project",
+      entityId: project_id ?? null,
+    });
+    const projetoHref = await tracking.shorten(`${PORTAL_URL}/projetos/${project_id}`);
+
     const html = buildEmail({
       preheader: isStageChange
         ? `O projeto "${project_name}" avançou para a etapa "${to_value}".`
@@ -104,8 +114,9 @@ serve(async (req) => {
       highlight: { title: "Detalhes da atualização", rows: highlightRows },
       button: {
         label: "Acompanhar o projeto",
-        href: `${PORTAL_URL}/projetos/${project_id}`,
+        href: projetoHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Para dúvidas, a equipe permanece à disposição pelo suporte do portal.",
     });
 
@@ -114,6 +125,8 @@ serve(async (req) => {
       subject,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

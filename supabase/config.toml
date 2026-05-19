@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-inadimplencia-warning]
 verify_jwt = false
+
+[functions.track]
+verify_jwt = false

@@ -15,6 +15,7 @@ import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { escapeHtml } from "../_shared/validation.ts";
 import { requireOperationalAccess } from "../_shared/auth.ts";
 import { getFormalGreeting, nl2br, truncateAtWord } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 type EventType = "em_andamento" | "resolvido" | "reply";
 
@@ -67,7 +68,7 @@ serve(async (req) => {
     // Busca ticket + cliente
     const { data: ticket, error: ticketError } = await admin
       .from("support_tickets")
-      .select("subject, body, clients(full_name, email, nome_fantasia, client_type, gender)")
+      .select("subject, body, clients(id, full_name, email, nome_fantasia, client_type, gender)")
       .eq("id", ticket_id)
       .maybeSingle();
 
@@ -80,6 +81,7 @@ serve(async (req) => {
     }
 
     const client = ticket.clients as {
+      id?: string;
       full_name?: string;
       email?: string;
       nome_fantasia?: string | null;
@@ -169,6 +171,15 @@ serve(async (req) => {
       }
     }
 
+    const tracking = await createCommunication({
+      kind: "ticket_updated",
+      recipientEmail: clientEmail,
+      clientId: client?.id ?? null,
+      entityType: "ticket",
+      entityId: ticket_id,
+    });
+    const ticketHref = await tracking.shorten(ticketUrl);
+
     const html = buildEmail({
       preheader: `${EVENT_SUBJECT[event]} — "${subject}".`,
       title: EVENT_SUBJECT[event],
@@ -180,8 +191,9 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o ticket",
-        href: ticketUrl,
+        href: ticketHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: noteHtml,
     });
 
@@ -190,6 +202,8 @@ serve(async (req) => {
       subject: `${EVENT_SUBJECT[event]} — ${subject}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       console.error("[send-ticket-updated] email failed:", result.error);

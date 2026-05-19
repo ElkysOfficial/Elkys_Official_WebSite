@@ -16,6 +16,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { getFormalGreeting, getClientFirstName, type Gender } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   email: string;
@@ -52,6 +53,15 @@ serve(async (req) => {
     };
     const displayName = getClientFirstName(client);
 
+    const tracking = await createCommunication({
+      kind: "client_welcome",
+      recipientEmail: email,
+      clientId: null,
+      entityType: "client",
+      entityId: null,
+    });
+    const portalHref = await tracking.shorten(PORTAL_URL);
+
     const html = buildEmail({
       preheader: "Seu acesso ao Portal Elkys está pronto.",
       title: "Boas-vindas ao Portal Elkys",
@@ -70,8 +80,9 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o Portal",
-        href: PORTAL_URL,
+        href: portalHref,
       },
+      pixelUrl: tracking.pixelUrl,
       showInstitutional: true,
       showSecurityNote: true,
     });
@@ -81,6 +92,8 @@ serve(async (req) => {
       subject: `Boas-vindas ao Portal Elkys — ${displayName}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

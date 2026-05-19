@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireOperationalAccess } from "../_shared/auth.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   client_id: string;
@@ -64,6 +65,15 @@ serve(async (req) => {
       ...(current_stage ? [{ label: "Etapa inicial", value: current_stage }] : []),
     ];
 
+    const tracking = await createCommunication({
+      kind: "project_created",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "project",
+      entityId: null,
+    });
+    const projetosHref = await tracking.shorten(`${PORTAL_URL}/projetos`);
+
     const html = buildEmail({
       preheader: `O projeto "${project_name}" foi vinculado à sua conta.`,
       title: "Novo projeto registrado",
@@ -76,8 +86,9 @@ serve(async (req) => {
       highlight: { title: "Detalhes do projeto", rows: highlightRows },
       button: {
         label: "Acessar o projeto",
-        href: `${PORTAL_URL}/projetos`,
+        href: projetosHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Para dúvidas sobre o projeto, a equipe permanece à disposição pelo suporte do portal.",
     });
 
@@ -86,6 +97,8 @@ serve(async (req) => {
       subject: `Novo projeto registrado — ${project_name}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

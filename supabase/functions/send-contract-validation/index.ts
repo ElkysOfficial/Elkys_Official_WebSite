@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireOperationalAccess, createServiceRoleClient } from "../_shared/auth.ts";
 import { getFormalGreeting, truncateAtWord } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   contract_id: string;
@@ -58,6 +59,15 @@ serve(async (req) => {
       ? `<p style="margin:0 0 18px 0;font-size:14px;line-height:22px;color:#333333;">Escopo resumido: <strong>${truncateAtWord(scope_summary, 300)}</strong></p>`
       : "";
 
+    const tracking = await createCommunication({
+      kind: "contract_validation",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "contract",
+      entityId: contract_id,
+    });
+    const contractHref = await tracking.shorten(`${PORTAL_URL}/contratos`);
+
     const html = buildEmail({
       preheader: `Contrato do projeto "${project_name}" aguardando sua validação.`,
       title: "Contrato para validação",
@@ -69,8 +79,9 @@ serve(async (req) => {
       `,
       button: {
         label: "Revisar contrato",
-        href: `${PORTAL_URL}/contratos`,
+        href: contractHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Em caso de dúvidas sobre qualquer cláusula, solicitamos contato prévio ao aceite.",
     });
 
@@ -79,6 +90,8 @@ serve(async (req) => {
       subject: `Contrato para validação — ${project_name}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

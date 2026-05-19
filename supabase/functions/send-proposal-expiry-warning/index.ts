@@ -14,6 +14,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { getFormalGreeting, plural, type Gender } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface ProposalRow {
   id: string;
@@ -99,6 +100,15 @@ serve(async (req) => {
       );
       const warningLabel = plural(WARNING_DAYS, "dia", "dias");
 
+      const tracking = await createCommunication({
+        kind: "proposal_expiry",
+        recipientEmail: client.email,
+        clientId: proposal.client_id,
+        entityType: "proposal",
+        entityId: proposal.id,
+      });
+      const proposalHref = await tracking.shorten(`${PORTAL_URL}/propostas/${proposal.id}`);
+
       const html = buildEmail({
         preheader: `A proposta "${proposal.title}" perde validade em ${warningLabel}.`,
         title: "Proposta prestes a expirar",
@@ -118,8 +128,9 @@ serve(async (req) => {
         },
         button: {
           label: "Analisar proposta",
-          href: `${PORTAL_URL}/propostas/${proposal.id}`,
+          href: proposalHref,
         },
+        pixelUrl: tracking.pixelUrl,
       });
 
       const result = await sendEmail({
@@ -127,6 +138,8 @@ serve(async (req) => {
         subject: `Proposta expira em ${warningLabel} — ${proposal.title}`,
         html,
       });
+
+      await tracking.finalize(result.ok);
 
       if (result.ok) sent++;
       else failed++;

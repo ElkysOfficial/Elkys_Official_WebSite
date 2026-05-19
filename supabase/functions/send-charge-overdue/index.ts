@@ -15,6 +15,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { isServiceRoleRequest, requireOperationalAccess } from "../_shared/auth.ts";
 import { getFormalGreeting, plural } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   client_id: string;
@@ -87,6 +88,18 @@ serve(async (req) => {
     );
     const overdueLabel = plural(daysOverdue, "dia", "dias");
 
+    // Prefere e-mail financeiro quando informado.
+    const recipientEmail = client.email_financeiro || client.email;
+
+    const tracking = await createCommunication({
+      kind: "charge_overdue",
+      recipientEmail,
+      clientId: client_id,
+      entityType: "charge",
+      entityId: null,
+    });
+    const financeiroHref = await tracking.shorten(`${PORTAL_URL}/financeiro`);
+
     const html = buildEmail({
       preheader: `Identificamos uma pendência financeira vencida há ${overdueLabel}.`,
       title: "Pendência financeira",
@@ -107,19 +120,19 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o financeiro",
-        href: `${PORTAL_URL}/financeiro`,
+        href: financeiroHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: `Preferir tratar por WhatsApp? Fale diretamente com o financeiro: <a href="https://wa.me/553199738235" style="color:#472680;">wa.me/553199738235</a>`,
     });
-
-    // Prefere e-mail financeiro quando informado.
-    const recipientEmail = client.email_financeiro || client.email;
 
     const result = await sendEmail({
       to: recipientEmail,
       subject: `Pendência financeira — ${charge_description}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

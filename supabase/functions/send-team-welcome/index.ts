@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { getTeamMemberGreeting, type Gender } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   email: string;
@@ -39,6 +40,15 @@ serve(async (req) => {
 
     const PORTAL_URL = Deno.env.get("PORTAL_URL") ?? "https://elkys.com.br/portal/admin";
 
+    const tracking = await createCommunication({
+      kind: "team_welcome",
+      recipientEmail: email,
+      clientId: null,
+      entityType: "team_member",
+      entityId: null,
+    });
+    const panelHref = await tracking.shorten(PORTAL_URL);
+
     const html = buildEmail({
       preheader: "Seu acesso ao painel interno da Elkys está ativo.",
       title: "Boas-vindas à equipe Elkys",
@@ -57,8 +67,9 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o painel",
-        href: PORTAL_URL,
+        href: panelHref,
       },
+      pixelUrl: tracking.pixelUrl,
       showInstitutional: true,
       showSecurityNote: true,
     });
@@ -68,6 +79,8 @@ serve(async (req) => {
       subject: `Boas-vindas à equipe Elkys`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

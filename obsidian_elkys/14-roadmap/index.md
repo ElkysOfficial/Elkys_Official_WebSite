@@ -87,6 +87,9 @@ Backlog priorizado por **ROI = valor × 1/esforço × 1/custoDB**, derivado da a
 - [ ] 2FA admin obrigatório
 - [ ] Refatorar `PortalProfilePage.tsx` (~445 LOC) em sub-componentes
 - [ ] Refatorar `AdminLayout.tsx` (~450 LOC) em SidebarNav, AdminHeader, NotificationCenter
+- [ ] Espelhar comunicações no WhatsApp (`dispatch-whatsapp` + Sonnar) — fases 4/5 de `docs/PLAN-EMAIL-WHATSAPP-TRACKING.md`; ver [[../03-features/communication-tracking]]
+- [ ] Drill-down "abriu/clicou" por cobrança/proposta — plano §9, complementa [[../03-features/communication-tracking]]
+- [ ] Política de retenção/expurgo de `tracking_events` (LGPD — IP/user-agent)
 
 ## Roadmap específicos
 

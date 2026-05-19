@@ -23,6 +23,7 @@ import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { escapeHtml } from "../_shared/validation.ts";
 import { requireAuthenticatedUser } from "../_shared/auth.ts";
 import { getTimeGreeting, nl2br, truncateAtWord } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   ticket_id: string;
@@ -84,44 +85,54 @@ serve(async (req) => {
     // Truncate body preview for email (respeita fronteira de palavra)
     const bodyPreview = truncateAtWord(body, 300);
 
-    const html = buildEmail({
-      preheader: `Ticket aberto por ${clientName}: "${subject}".`,
-      title: "Novo ticket de suporte",
-      greeting: `${getTimeGreeting()},`,
-      body: `
-        <p style="margin:0 0 12px;font-size:14px;line-height:22px;color:#333333;">O cliente <strong>${escapeHtml(clientName)}</strong> abriu um novo ticket de suporte. Solicitamos atendimento assim que possível.</p>
-      `,
-      highlight: {
-        title: "Detalhes da solicitação",
-        rows: [
-          { label: "Cliente", value: clientName },
-          { label: "E-mail", value: clientEmail },
-          { label: "Assunto", value: subject },
-        ],
-      },
-      button: {
-        label: "Acessar o ticket",
-        href: ticketUrl,
-      },
-      note: `<strong>Mensagem do cliente:</strong><br/><em style="color:#52525b;">"${nl2br(escapeHtml(bodyPreview))}"</em>`,
-    });
+    // Send to all configured recipients (serial para rastreio individual por destinatário)
+    let failures = 0;
+    for (const recipientEmail of notifyEmails) {
+      const tracking = await createCommunication({
+        kind: "ticket_opened",
+        recipientEmail,
+        clientId: null,
+        entityType: "ticket",
+        entityId: ticket_id,
+      });
+      const ticketHref = await tracking.shorten(ticketUrl);
 
-    // Send to all configured recipients
-    const results = await Promise.allSettled(
-      notifyEmails.map((email) =>
-        sendEmail({
-          to: email,
-          subject: `Novo ticket de suporte — ${subject}`,
-          html,
-        })
-      )
-    );
+      const html = buildEmail({
+        preheader: `Ticket aberto por ${clientName}: "${subject}".`,
+        title: "Novo ticket de suporte",
+        greeting: `${getTimeGreeting()},`,
+        body: `
+          <p style="margin:0 0 12px;font-size:14px;line-height:22px;color:#333333;">O cliente <strong>${escapeHtml(clientName)}</strong> abriu um novo ticket de suporte. Solicitamos atendimento assim que possível.</p>
+        `,
+        highlight: {
+          title: "Detalhes da solicitação",
+          rows: [
+            { label: "Cliente", value: clientName },
+            { label: "E-mail", value: clientEmail },
+            { label: "Assunto", value: subject },
+          ],
+        },
+        button: {
+          label: "Acessar o ticket",
+          href: ticketHref,
+        },
+        pixelUrl: tracking.pixelUrl,
+        note: `<strong>Mensagem do cliente:</strong><br/><em style="color:#52525b;">"${nl2br(escapeHtml(bodyPreview))}"</em>`,
+      });
 
-    const failures = results.filter(
-      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)
-    );
-    if (failures.length > 0) {
-      console.warn(`[send-ticket-opened] ${failures.length} email(s) failed`);
+      const result = await sendEmail({
+        to: recipientEmail,
+        subject: `Novo ticket de suporte — ${subject}`,
+        html,
+      });
+
+      await tracking.finalize(result.ok);
+
+      if (!result.ok) failures++;
+    }
+
+    if (failures > 0) {
+      console.warn(`[send-ticket-opened] ${failures} email(s) failed`);
     }
 
     return new Response(JSON.stringify({ ok: true }), {

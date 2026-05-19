@@ -10,6 +10,7 @@ import { type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail } from "./email-template.ts";
 import { formatNotificationBody } from "./validation.ts";
 import { getFormalGreeting } from "./greeting.ts";
+import { createCommunication } from "./comms-tracking.ts";
 
 const TYPE_LABELS: Record<string, string> = {
   manutencao: "Manutenção programada",
@@ -135,6 +136,15 @@ export async function processNotification(
   let errorCount = 0;
 
   for (const client of clients) {
+    const tracking = await createCommunication({
+      kind: "notification",
+      recipientEmail: client.email,
+      clientId: client.id,
+      entityType: "notification",
+      entityId: notificationId,
+    });
+    const portalHref = await tracking.shorten(PORTAL_URL);
+
     const html = buildEmail({
       preheader: `${typeLabel}: ${notification.title}`,
       title: typeLabel,
@@ -146,11 +156,14 @@ export async function processNotification(
       `,
       button: {
         label: "Acessar o portal",
-        href: PORTAL_URL,
+        href: portalHref,
       },
+      pixelUrl: tracking.pixelUrl,
     });
 
     const result = await sendEmail({ to: client.email, subject, html });
+
+    await tracking.finalize(result.ok);
 
     // Update recipient record
     const updatePayload = result.ok

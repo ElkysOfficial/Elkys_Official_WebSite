@@ -32,6 +32,7 @@ import {
   Code2,
   FileText,
   Folder,
+  Mail,
   Receipt,
   Shield,
   SuporteFill,
@@ -290,6 +291,12 @@ const ALL_NAV_SECTIONS: NavSection[] = [
         roles: ["admin_super", "admin"],
       },
       {
+        label: "Comunicações",
+        href: "/portal/admin/comunicacoes",
+        icon: Mail,
+        roles: ["admin_super", "admin", "comercial", "financeiro"],
+      },
+      {
         label: "Auditoria",
         href: "/portal/admin/audit-log",
         icon: Shield,
@@ -434,6 +441,12 @@ const adminPageMeta = [
     title: "Receita por Cliente",
     description:
       "Ranking de clientes por receita gerada com distribuicao percentual e ticket medio.",
+  },
+  {
+    match: (pathname: string) => pathname === "/portal/admin/comunicacoes",
+    title: "Comunicações",
+    description:
+      "Rastreio dos e-mails enviados pelo portal — taxa de entrega, abertura (pixel) e clique (link encurtado).",
   },
   {
     match: (pathname: string) => pathname === "/portal/admin/audit-log",

@@ -29,6 +29,12 @@ interface EmailTemplateOptions {
    * Default: false. Usado em welcome e password-reset.
    */
   showSecurityNote?: boolean;
+  /**
+   * URL do pixel de rastreio de abertura (1×1). Quando informada, um
+   * `<img>` invisível é injetado antes do `</body>`. Gerada por
+   * `createCommunication` (`_shared/comms-tracking.ts`).
+   */
+  pixelUrl?: string;
 }
 
 /**
@@ -182,6 +188,18 @@ export function buildEmail(opts: EmailTemplateOptions): string {
                         >
                           ${opts.warning}
                         </p>`
+    : "";
+
+  // Pixel de rastreio de abertura: GIF 1×1 invisivel injetado no fim do body.
+  const pixelBlock = opts.pixelUrl
+    ? `
+    <img
+      src="${escapeAttr(opts.pixelUrl)}"
+      width="1"
+      height="1"
+      alt=""
+      style="display:block;width:1px;height:1px;border:0;opacity:0;"
+    />`
     : "";
 
   const noteBlock = opts.note
@@ -660,6 +678,7 @@ export function buildEmail(opts: EmailTemplateOptions): string {
       </tr>
     </table>
     </center>
+    ${pixelBlock}
   </body>
 </html>`;
 }
@@ -712,8 +731,7 @@ export async function sendEmail(opts: {
   // reports de spam caem direto na pontuacao do dominio. O endpoint mailto eh
   // aceitavel como ponto de entrada; a implementacao de opt-out efetivo (honrar
   // o pedido, remover da fila) fica com o time que recebe o inbox.
-  const UNSUBSCRIBE_MAILTO =
-    Deno.env.get("UNSUBSCRIBE_EMAIL") ?? "unsubscribe@elkys.com.br";
+  const UNSUBSCRIBE_MAILTO = Deno.env.get("UNSUBSCRIBE_EMAIL") ?? "unsubscribe@elkys.com.br";
 
   if (!RESEND_API_KEY) {
     console.error("[sendEmail] RESEND_API_KEY not configured");

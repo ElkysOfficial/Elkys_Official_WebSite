@@ -26,6 +26,7 @@ import {
   requireOperationalAccess,
   createServiceRoleClient,
 } from "../_shared/auth.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 const MAX_PER_RUN = 200;
 
@@ -143,6 +144,15 @@ serve(async (req) => {
           ? client.nome_fantasia
           : client.full_name;
 
+      const tracking = await createCommunication({
+        kind: "inadimplencia_warning",
+        recipientEmail: client.email,
+        clientId: event.client_id,
+        entityType: "charge",
+        entityId: null,
+      });
+      const financeiroHref = await tracking.shorten(`${PORTAL_URL}/financeiro`);
+
       const html = buildEmail({
         preheader: "Aviso sobre o status do seu contrato.",
         title: "Aviso importante sobre seu contrato",
@@ -155,8 +165,9 @@ serve(async (req) => {
         `,
         button: {
           label: "Acessar financeiro →",
-          href: `${PORTAL_URL}/financeiro`,
+          href: financeiroHref,
         },
+        pixelUrl: tracking.pixelUrl,
       });
 
       const result = await sendEmail({
@@ -164,6 +175,8 @@ serve(async (req) => {
         subject: "Aviso importante sobre seu contrato",
         html,
       });
+
+      await tracking.finalize(result.ok);
 
       if (result.ok) {
         const { error: updErr } = await admin

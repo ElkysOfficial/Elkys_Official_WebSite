@@ -67,6 +67,10 @@ const SECTIONS: SectionDef[] = [
     trail: () => [ADMIN_ROOT, { label: "Financeiro" }],
   },
   {
+    match: (p) => p === "/portal/admin/comunicacoes",
+    trail: () => [ADMIN_ROOT, { label: "Comunicações" }],
+  },
+  {
     match: (p) => p === "/portal/admin/financeiro/nova-despesa",
     trail: () => [
       ADMIN_ROOT,

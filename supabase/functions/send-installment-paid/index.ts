@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess, createServiceRoleClient } from "../_shared/auth.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   installment_id: string;
@@ -110,6 +111,17 @@ serve(async (req) => {
     const paidAt = formatDateBR(installment.paid_at ?? new Date().toISOString().slice(0, 10));
     const projectUrl = `${PORTAL_URL}/projetos/${project_id}`;
 
+    const recipientEmail = client.email_financeiro || client.email;
+
+    const tracking = await createCommunication({
+      kind: "installment_paid",
+      recipientEmail,
+      clientId: client_id,
+      entityType: "charge",
+      entityId: installment_id,
+    });
+    const projectHref = await tracking.shorten(projectUrl);
+
     const html = buildEmail({
       preheader: `Confirmamos o recebimento da parcela de ${typeLabel.toLowerCase()} no valor de ${amount}.`,
       title: "Pagamento confirmado",
@@ -133,18 +145,19 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o projeto",
-        href: projectUrl,
+        href: projectHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Este e-mail serve como comprovante de registro do pagamento.",
     });
-
-    const recipientEmail = client.email_financeiro || client.email;
 
     const result = await sendEmail({
       to: recipientEmail,
       subject: `Pagamento confirmado — ${project.name} (${typeLabel} ${percentage}%)`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

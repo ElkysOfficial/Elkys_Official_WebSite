@@ -1,0 +1,6 @@
+# Encurtador lnk.elkys.com.br — roteia tudo para o index.php (o proxy PHP),
+# exceto arquivos que existam de verdade na pasta.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]

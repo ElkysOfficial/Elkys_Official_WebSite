@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireOperationalAccess } from "../_shared/auth.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   client_id: string;
@@ -92,6 +93,15 @@ serve(async (req) => {
         </table>`
       : "";
 
+    const tracking = await createCommunication({
+      kind: "project_completed",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "project",
+      entityId: null,
+    });
+    const projetosHref = await tracking.shorten(`${PORTAL_URL}/projetos`);
+
     const html = buildEmail({
       preheader: `O projeto "${project_name}" foi entregue e está concluído.`,
       title: "Entrega concluída",
@@ -112,8 +122,9 @@ serve(async (req) => {
       },
       button: {
         label: "Acessar o projeto",
-        href: `${PORTAL_URL}/projetos`,
+        href: projetosHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "Para ajustes ou suporte pós-entrega, a equipe permanece à disposição pelo portal.",
     });
 
@@ -122,6 +133,8 @@ serve(async (req) => {
       subject: `Entrega concluída — ${project_name}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

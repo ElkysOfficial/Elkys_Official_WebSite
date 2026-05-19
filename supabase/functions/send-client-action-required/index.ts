@@ -15,6 +15,7 @@ import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { escapeHtml } from "../_shared/validation.ts";
 import { getFormalGreeting } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 type ActionType =
   | "geral"
@@ -257,6 +258,15 @@ serve(async (req) => {
         ? meeting_link
         : `${PORTAL_URL}/projetos/${project_id}`;
 
+    const tracking = await createCommunication({
+      kind: "client_action",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "client",
+      entityId: client_id,
+    });
+    const buttonTrackedHref = await tracking.shorten(buttonHref);
+
     const html = buildEmail({
       preheader: `${tpl.subjectPrefix} — ${step_title} (projeto ${project_name}).`,
       title: tpl.title,
@@ -268,7 +278,8 @@ serve(async (req) => {
         ${formattedDueDate ? `<p style="margin:0 0 12px;font-size:14px;line-height:22px;color:#333333;"><strong>Prazo sugerido:</strong> ${formattedDueDate}</p>` : ""}
       `,
       highlight: { title: "Detalhes da solicitação", rows: highlightRows },
-      button: { label: tpl.buttonLabel, href: buttonHref },
+      button: { label: tpl.buttonLabel, href: buttonTrackedHref },
+      pixelUrl: tracking.pixelUrl,
       note: tpl.note,
     });
 
@@ -277,6 +288,8 @@ serve(async (req) => {
       subject: `${tpl.subjectPrefix} — ${step_title} (${project_name})`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     if (!result.ok) {
       return new Response(JSON.stringify({ error: result.error }), {

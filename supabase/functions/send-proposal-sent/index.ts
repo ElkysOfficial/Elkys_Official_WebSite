@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { getFormalGreeting, truncateAtWord } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 interface Payload {
   proposal_id: string;
@@ -86,6 +87,15 @@ serve(async (req) => {
         })
       : null;
 
+    const tracking = await createCommunication({
+      kind: "proposal_sent",
+      recipientEmail: client.email,
+      clientId: client_id,
+      entityType: "proposal",
+      entityId: proposal_id,
+    });
+    const proposalHref = await tracking.shorten(`${PORTAL_URL}/propostas`);
+
     const html = buildEmail({
       preheader: "Proposta comercial disponível para análise no portal.",
       title: "Nova proposta comercial",
@@ -108,8 +118,9 @@ serve(async (req) => {
       },
       button: {
         label: "Analisar proposta",
-        href: `${PORTAL_URL}/propostas`,
+        href: proposalHref,
       },
+      pixelUrl: tracking.pixelUrl,
       note: "A aprovação ou solicitação de ajustes pode ser realizada pelo portal a qualquer momento.",
     });
 
@@ -118,6 +129,8 @@ serve(async (req) => {
       subject: `Nova proposta comercial — ${proposal.title}`,
       html,
     });
+
+    await tracking.finalize(result.ok);
 
     return new Response(JSON.stringify({ ok: result.ok, error: result.error ?? null }), {
       status: result.ok ? 200 : 500,

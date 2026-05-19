@@ -47,6 +47,7 @@ Features são _capabilities_ observáveis do produto. Cada feature corta múltip
 - [[notifications]] — broadcast + scheduled
 - [[legal-acceptance]] — aceite de termos com versionamento e log imutável
 - [[first-access]] — must-change-password
+- [[communication-tracking]] — rastreio de abertura (pixel) e clique (encurtado) de e-mails
 
 ## Cross-cutting
 

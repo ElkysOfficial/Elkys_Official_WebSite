@@ -18,6 +18,7 @@ const AdminProjectCreate = lazy(() => import("./portal/admin/ProjectCreate"));
 const AdminProjectDetail = lazy(() => import("./portal/admin/ProjectDetail"));
 const AdminInternalDocuments = lazy(() => import("./portal/admin/InternalDocuments"));
 const AdminFinance = lazy(() => import("./portal/admin/Finance"));
+const AdminCommunications = lazy(() => import("./portal/admin/Communications"));
 const AdminExpenseCreate = lazy(() => import("./portal/admin/ExpenseCreate"));
 const AdminTeamCreate = lazy(() => import("./portal/admin/TeamCreate"));
 const AdminTeamEdit = lazy(() => import("./portal/admin/TeamEdit"));
@@ -181,6 +182,14 @@ const PortalRoutes = () => (
           element={
             <PortalRoleGuard allowedRoles={["admin_super", "admin", "developer", "designer", "po"]}>
               <AdminInternalDocuments audience="developer" />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="comunicacoes"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin", "financeiro", "comercial"]}>
+              <AdminCommunications />
             </PortalRoleGuard>
           }
         />

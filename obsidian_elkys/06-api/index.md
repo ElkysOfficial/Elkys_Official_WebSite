@@ -10,7 +10,7 @@ tags: [api, edge-functions, moc]
 Não há REST/GraphQL próprio. A "API" é composta por:
 
 1. **Supabase RPC + tabelas** — chamadas diretas via `@supabase/supabase-js` (filtradas por RLS).
-2. **26 Edge Functions Deno** (`supabase/functions/`) — operações que precisam de privilégio elevado, integração externa (Resend) ou são acionadas por cron.
+2. **27 Edge Functions Deno** (`supabase/functions/`) — operações que precisam de privilégio elevado, integração externa (Resend) ou são acionadas por cron.
 3. **Helpers TypeScript** (`src/lib/portal-data.ts`) — wrappers tipados sobre o cliente Supabase, usados pelas páginas via React Query.
 
 ## Categorias
@@ -57,6 +57,11 @@ Não há REST/GraphQL próprio. A "API" é composta por:
 
 - [[edge-fn-google-calendar-sync]]
 
+### Rastreio de comunicação
+
+- [[edge-fn-track]] — pública (`verify_jwt=false`): encurtador de link (`/c/<slug>`) + pixel de abertura (`/o/<id>.gif`). Ver [[../03-features/communication-tracking]] e [[../12-decisions/ADR-012-communication-tracking]].
+- Helper `_shared/comms-tracking.ts` — `createCommunication()` (pixel + `shorten()` + `finalize()`), usado pelas 17 funções `send-*` (exceto `send-password-reset`).
+
 ### Helpers tipados (`src/lib/portal-data.ts`)
 
 - `resolveClientForUser(userId)` → resolve `client_id` por dois caminhos
@@ -69,6 +74,7 @@ Não há REST/GraphQL próprio. A "API" é composta por:
 - `loadTimelineForProject`
 - `loadDocumentsForProject`
 - `loadSupportTicketsForClient`
+- `loadCommunications` / `loadTrackingEvents` → dashboard de comunicações
 
 ## Padrões transversais
 

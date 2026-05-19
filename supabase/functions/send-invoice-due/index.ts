@@ -22,6 +22,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { getFormalGreeting, plural } from "../_shared/greeting.ts";
+import { createCommunication } from "../_shared/comms-tracking.ts";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -124,6 +125,18 @@ serve(async (req) => {
         value: formatBRL(Number(c.amount)),
       }));
 
+      const recipientEmail = client.email_financeiro || client.email;
+
+      // Rastreio: 1 communication por cliente, pixel de abertura + link curto.
+      const tracking = await createCommunication({
+        kind: "invoice_due",
+        recipientEmail,
+        clientId,
+        entityType: "charge",
+        entityId: clientCharges[0].id,
+      });
+      const portalHref = await tracking.shorten(`${PORTAL_URL}/financeiro`);
+
       const html = buildEmail({
         preheader: isInadimplente
           ? `Identificamos pendência financeira em aberto em sua conta.`
@@ -152,16 +165,15 @@ serve(async (req) => {
         },
         button: {
           label: "Acessar o portal",
-          href: `${PORTAL_URL}/financeiro`,
+          href: portalHref,
         },
+        pixelUrl: tracking.pixelUrl,
         ...(isInadimplente && {
           warning:
             "A conta apresenta pendência financeira. Solicitamos contato com nossa equipe para evitar a suspensão dos serviços.",
         }),
         note: `Dúvidas sobre cobranças: atendimento pelo portal ou WhatsApp <a href="https://wa.me/553199738235" style="color:#472680;">wa.me/553199738235</a>.`,
       });
-
-      const recipientEmail = client.email_financeiro || client.email;
 
       const result = await sendEmail({
         to: recipientEmail,
@@ -170,6 +182,8 @@ serve(async (req) => {
           : `Lembrete: sua ${faturaLabel} ${verbo} em ${daysLabel}`,
         html,
       });
+
+      await tracking.finalize(result.ok);
 
       if (result.ok) sent++;
       else failed++;
