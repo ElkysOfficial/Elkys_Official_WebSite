@@ -24,6 +24,8 @@ Não há REST/GraphQL próprio. A "API" é composta por:
 
 ### Email transacional (Resend)
 
+> Visual compartilhado e tooling de preview: [[shared-email-template]].
+
 - [[edge-fn-send-client-welcome]]
 - [[edge-fn-send-team-welcome]]
 - [[edge-fn-send-password-reset]]

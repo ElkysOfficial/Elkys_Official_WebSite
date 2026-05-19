@@ -32,10 +32,14 @@ tags: [backend, edge-functions]
 
 ### `email-template.ts`
 
-- `buildEmail({ preheader, title, greeting, body, highlight, button, note, warning })` — HTML transacional Elkys.
-- `sendEmail({ to, subject, html })` — Resend; retorna `{ ok, error? }`.
+Visual + tooling de preview documentado em [[../06-api/shared-email-template]].
+
+- `buildEmail({ preheader, title, greeting, body, highlight, button, note, warning, showInstitutional, showSecurityNote })` — HTML transacional Elkys (logo 110×29, roxo #472680, border-top teal, footer com copyright).
+- `sendEmail({ to, subject, html, replyTo? })` — Resend; inclui header `List-Unsubscribe` RFC 8058; retorna `{ ok, error? }`.
 - `CORS` — headers padrão.
 - `getTimeGreeting()` — "Bom dia/Boa tarde/Boa noite".
+
+> Preview local: `npm run preview:emails` gera `previews/<fn>.html` bit-exato a partir do template real.
 
 ### `validation.ts`
 

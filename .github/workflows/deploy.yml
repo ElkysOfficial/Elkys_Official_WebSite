@@ -56,12 +56,15 @@ jobs:
         continue-on-error: true
         run: npm run build
 
-      # IMPORTANTE: attempt 1 usa dangerous-clean-slate: true para garantir
-      # reset completo do state file do FTP. Isso corrige o drift de estado
-      # que deixou chunks órfãos em produção (404 em AdminPortalHome,
-      # BillingAutomation, TeamHub, MarketingCalendar, etc) após retries
-      # parciais de deploys anteriores. Attempts 2 e 3 usam false para
-      # retomar sem apagar em caso de falha no meio do primeiro upload.
+      # POLÍTICA DE DEPLOY (permanente):
+      # Attempt 1 sempre roda com dangerous-clean-slate: true — a cada push
+      # em main, o public_html é apagado e re-subido do zero. Isso elimina
+      # qualquer drift de state file do FTP e chunks órfãos de builds
+      # anteriores, mantendo produção sempre 1:1 com ./dist/.
+      # Attempts 2 e 3 usam clean-slate: false de propósito: se a 1 apagar
+      # tudo mas falhar no meio do upload, retomar com wipe novamente
+      # entraria em loop de apagar/subir parcial. O fallback resume o
+      # upload de onde parou até completar.
       - name: Deploy via FTP (Hostinger) — attempt 1 (clean slate)
         id: deploy_1
         if: steps.build.outcome == 'success'
