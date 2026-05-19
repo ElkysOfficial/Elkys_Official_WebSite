@@ -21,6 +21,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS, getTimeGreeting } from "../_shared/email-template.ts";
+import { getWhatsAppGreeting } from "../_shared/greeting.ts";
 import {
   isServiceRoleRequest,
   requireOperationalAccess,
@@ -95,7 +96,7 @@ serve(async (req) => {
       const { data: client } = await admin
         .from("clients")
         .select(
-          "full_name, email, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
+          "full_name, email, gender, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
         )
         .eq("id", event.client_id)
         .maybeSingle();
@@ -187,7 +188,7 @@ serve(async (req) => {
       // Espelha o aviso no WhatsApp (curto + link). Falha nao afeta o e-mail.
       let waStatus: "sent" | "failed" | "skipped" = "skipped";
       if (recipientPhone) {
-        const waText = `*Elkys — Aviso sobre seu contrato*\n\n${clientName}, identificamos pendências financeiras que alteraram o status do seu contrato. Acesse o portal para regularizar e evitar a interrupção dos serviços.\n\nSe já efetuou o pagamento, desconsidere.\n\nAcessar financeiro: ${financeiroHref}`;
+        const waText = `${getWhatsAppGreeting(client)}\n\nIdentificamos pendências financeiras que alteraram o status do seu contrato.\n\nPara regularizar e garantir a continuidade dos serviços, acesse o financeiro no portal.\n\nAcesse por aqui:\n${financeiroHref}\n\nSe o pagamento já foi efetuado, pode desconsiderar. Qualquer dúvida, estamos à disposição.`;
         waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
       }
       await tracking.finalize(result.ok, waStatus);

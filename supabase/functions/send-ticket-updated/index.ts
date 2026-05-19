@@ -14,7 +14,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { escapeHtml } from "../_shared/validation.ts";
 import { requireOperationalAccess } from "../_shared/auth.ts";
-import { getFormalGreeting, nl2br, truncateAtWord } from "../_shared/greeting.ts";
+import {
+  getFormalGreeting,
+  getWhatsAppGreeting,
+  nl2br,
+  truncateAtWord,
+} from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -217,11 +222,11 @@ serve(async (req) => {
     if (recipientPhone) {
       let waText: string;
       if (event === "em_andamento") {
-        waText = `*Elkys — Ticket em análise*\n\nSua solicitação de suporte "${subject}" foi recebida e está em análise pela equipe Elkys.\n\nAcessar o ticket: ${ticketHref}`;
+        waText = `${getWhatsAppGreeting(client ?? {})}\n\nRecebemos a sua solicitação de suporte "${subject}" e ela já está em análise pela nossa equipe.\n\nVamos te manter informado. Acompanhe o ticket por aqui:\n${ticketHref}\n\nQualquer dúvida, estamos à disposição.`;
       } else if (event === "resolvido") {
-        waText = `*Elkys — Ticket resolvido*\n\nSua solicitação de suporte "${subject}" foi concluída e marcada como resolvida.\n\nAcessar o ticket: ${ticketHref}`;
+        waText = `${getWhatsAppGreeting(client ?? {})} ✅\n\nA sua solicitação de suporte "${subject}" foi concluída e marcada como resolvida.\n\nSe precisar de algo mais, é só nos chamar. Veja o ticket por aqui:\n${ticketHref}\n\nEstamos à disposição.`;
       } else {
-        waText = `*Elkys — Nova resposta no seu ticket*\n\nA equipe Elkys registrou uma resposta ao seu ticket "${subject}". A resposta completa está no portal.\n\nAcessar o ticket: ${ticketHref}`;
+        waText = `${getWhatsAppGreeting(client ?? {})}\n\nA nossa equipe registrou uma nova resposta no seu ticket "${subject}".\n\nA resposta completa está no portal. Acesse por aqui:\n${ticketHref}\n\nQualquer dúvida, estamos à disposição.`;
       }
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }

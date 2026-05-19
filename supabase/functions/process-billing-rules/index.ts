@@ -5,6 +5,7 @@ import {
   isServiceRoleRequest,
 } from "../_shared/auth.ts";
 import { buildEmail, sendEmail, getTimeGreeting } from "../_shared/email-template.ts";
+import { getWhatsAppGreeting } from "../_shared/greeting.ts";
 import { escapeAndFormat } from "../_shared/validation.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
@@ -109,7 +110,7 @@ Deno.serve(async (req: Request) => {
       const { data: client } = await supabase
         .from("clients")
         .select(
-          "full_name, email, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
+          "full_name, email, gender, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
         )
         .eq("id", charge.client_id)
         .single();
@@ -179,7 +180,7 @@ Deno.serve(async (req: Request) => {
       // afeta o e-mail. Nao repete o corpo do template, apenas resume.
       let waStatus: "sent" | "failed" | "skipped" = "skipped";
       if (recipientPhone) {
-        const waText = `*Elkys — Aviso financeiro*\n\n${subject}\nCobrança: ${vars.description} — ${vars.amount} (vencimento ${vars.due_date}).\n\nAcessar o financeiro: ${portalHref}`;
+        const waText = `${getWhatsAppGreeting(client)}\n\n${subject}\n\nReferente à cobrança "${vars.description}", no valor de ${vars.amount}, com vencimento em ${vars.due_date}.\n\nAcesse o financeiro por aqui:\n${portalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
         waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
       }
       await tracking.finalize(result.ok, waStatus);
@@ -282,7 +283,7 @@ Deno.serve(async (req: Request) => {
         const { data: client } = await supabase
           .from("clients")
           .select(
-            "full_name, email, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
+            "full_name, email, gender, nome_fantasia, client_type, phone, whatsapp, responsavel_financeiro_phone"
           )
           .eq("id", charge.client_id)
           .single();
@@ -345,8 +346,8 @@ Deno.serve(async (req: Request) => {
           if (recipientPhone) {
             const waText =
               rule.trigger_days > 0
-                ? `*Elkys — Cobrança em atraso*\n\n${subject}\nCobrança: ${vars.description} — ${vars.amount} (venceu em ${vars.due_date}).\n\nAcessar o financeiro: ${portalHref}`
-                : `*Elkys — Aviso financeiro*\n\n${subject}\nCobrança: ${vars.description} — ${vars.amount} (vencimento ${vars.due_date}).\n\nAcessar o financeiro: ${portalHref}`;
+                ? `${getWhatsAppGreeting(client)}\n\n${subject}\n\nA cobrança "${vars.description}", no valor de ${vars.amount}, venceu em ${vars.due_date} e está em aberto. Pedimos a regularização assim que possível.\n\nAcesse o financeiro por aqui:\n${portalHref}\n\nSe o pagamento já foi feito, pode desconsiderar. Estamos à disposição.`
+                : `${getWhatsAppGreeting(client)}\n\n${subject}\n\nA cobrança "${vars.description}", no valor de ${vars.amount}, tem vencimento em ${vars.due_date}.\n\nAcesse o financeiro por aqui:\n${portalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
             waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
           }
           await tracking.finalize(result.ok, waStatus);

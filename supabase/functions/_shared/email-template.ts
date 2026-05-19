@@ -1,6 +1,6 @@
 import { escapeHtml } from "./validation.ts";
 
-const LOGO_URL = "https://elkys.com.br/imgs/icons/lettering_elkys.webp";
+const LOGO_URL = "https://elkys.com.br/imgs/icons/lettering_elkys_branco.png";
 const SITE_URL = "elkys.com.br";
 
 interface EmailButton {

@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireOperationalAccess, createServiceRoleClient } from "../_shared/auth.ts";
-import { getFormalGreeting, truncateAtWord } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting, truncateAtWord } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -101,7 +101,7 @@ serve(async (req) => {
     // Espelha o aviso no WhatsApp (curto + link). Falha nao afeta o e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — Contrato para validação*\n\nO contrato do projeto "${project_name}" foi finalizado e aguarda sua revisão e aceite no portal.\n\nRevisar contrato: ${contractHref}`;
+      const waText = `${getWhatsAppGreeting(client)}\n\nO contrato do projeto "${project_name}" foi finalizado e já está disponível para a sua revisão e aceite.\n\nÉ um passo rápido e importante para darmos início às próximas etapas.\n\nRevise o contrato por aqui:\n${contractHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

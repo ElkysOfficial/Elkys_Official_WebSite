@@ -9,7 +9,7 @@
 import { type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail } from "./email-template.ts";
 import { formatNotificationBody } from "./validation.ts";
-import { getFormalGreeting } from "./greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting } from "./greeting.ts";
 import { createCommunication } from "./comms-tracking.ts";
 import { sendWhatsApp } from "./whatsapp.ts";
 
@@ -173,7 +173,7 @@ export async function processNotification(
     // Espelha o comunicado no WhatsApp (curto + link). Falha nao afeta o e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — ${typeLabel}*\n\n${notification.title}\n\nAcessar o portal: ${portalHref}`;
+      const waText = `${getWhatsAppGreeting(client)}\n\n${typeLabel}: ${notification.title}\n\nOs detalhes completos estão no portal.\n\nAcesse por aqui:\n${portalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

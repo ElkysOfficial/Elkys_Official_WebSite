@@ -13,7 +13,12 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
-import { getFormalGreeting, plural, type Gender } from "../_shared/greeting.ts";
+import {
+  getFormalGreeting,
+  getWhatsAppGreeting,
+  plural,
+  type Gender,
+} from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -152,7 +157,7 @@ serve(async (req) => {
       // Espelha o aviso no WhatsApp (curto + link). Falha nao afeta o e-mail.
       let waStatus: "sent" | "failed" | "skipped" = "skipped";
       if (recipientPhone) {
-        const waText = `*Elkys — Proposta prestes a expirar*\n\nA proposta "${proposal.title}" perde validade em ${warningLabel} (${validUntilText}). Caso o interesse permaneça, responda pelo portal.\n\nAnalisar proposta: ${proposalHref}`;
+        const waText = `${getWhatsAppGreeting(client)}\n\nA proposta "${proposal.title}" está perto de expirar: ela perde a validade em ${warningLabel} (${validUntilText}).\n\nSe o interesse continua de pé, é só responder pelo portal.\n\nAnalise a proposta por aqui:\n${proposalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
         waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
       }
       await tracking.finalize(result.ok, waStatus);

@@ -14,7 +14,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { isServiceRoleRequest, requireOperationalAccess } from "../_shared/auth.ts";
-import { getFormalGreeting, plural } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting, plural } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -142,7 +142,7 @@ serve(async (req) => {
     // Espelha o aviso no WhatsApp (curto + link). Falha nao afeta o e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — Pendência financeira*\n\nIdentificamos a cobrança "${charge_description}" (${formatBRL(charge_amount)}) vencida há ${overdueLabel}. Pedimos a regularização o quanto antes.\n\nAcesse o financeiro: ${financeiroHref}`;
+      const waText = `${getWhatsAppGreeting(client)}\n\nIdentificamos que a cobrança "${charge_description}", no valor de ${formatBRL(charge_amount)}, está vencida há ${overdueLabel}.\n\nPara manter sua conta em dia e evitar qualquer interrupção, pedimos a regularização assim que possível.\n\nAcesse o financeiro por aqui:\n${financeiroHref}\n\nSe o pagamento já foi feito, pode desconsiderar este aviso. Qualquer dúvida, estamos à disposição.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

@@ -71,7 +71,17 @@ serve(async (req) => {
     });
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      // E-mail ja cadastrado e o caso mais comum: o Supabase Auth nao
+      // permite duas contas com o mesmo e-mail (um membro da equipe e um
+      // cliente, por exemplo). Devolve uma mensagem clara em vez do texto
+      // tecnico cru do GoTrue.
+      const alreadyRegistered = /already (been )?registered|already exists|email.*exists/i.test(
+        error.message
+      );
+      const friendlyMessage = alreadyRegistered
+        ? "Este e-mail já está em uso por outra conta do portal. Use um e-mail diferente."
+        : error.message;
+      return new Response(JSON.stringify({ error: friendlyMessage }), {
         status: 400,
         headers: { ...CORS, "Content-Type": "application/json" },
       });

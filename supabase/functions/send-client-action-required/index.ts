@@ -14,7 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
 import { escapeHtml } from "../_shared/validation.ts";
-import { getFormalGreeting } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -302,7 +302,7 @@ serve(async (req) => {
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
       const dueLine = formattedDueDate ? `\nPrazo sugerido: ${formattedDueDate}` : "";
-      const waText = `*Elkys — ${tpl.title}*\n\n${tpl.subjectPrefix} no projeto "${project_name}": ${step_title}.${dueLine}\n\n${tpl.buttonLabel}: ${buttonTrackedHref}`;
+      const waText = `${getWhatsAppGreeting(client)}\n\n${tpl.subjectPrefix} no projeto "${project_name}": ${step_title}.${dueLine}\n\nSua ação é importante para mantermos tudo no ritmo.\n\nAcesse por aqui:\n${buttonTrackedHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

@@ -21,7 +21,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
-import { getFormalGreeting, plural } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting, plural } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -192,8 +192,8 @@ serve(async (req) => {
       let waStatus: "sent" | "failed" | "skipped" = "skipped";
       if (recipientPhone) {
         const waText = isInadimplente
-          ? `*Elkys — Pendência financeira*\n\nIdentificamos pendência financeira em aberto na sua conta (${amountFormatted}). Pedimos a regularização o quanto antes.\n\nAcesse o financeiro: ${portalHref}`
-          : `*Elkys — Lembrete de vencimento*\n\nSua ${faturaLabel} de ${amountFormatted} ${verbo} em ${dueDateFormatted} (${daysLabel}).\n\nAcesse o financeiro: ${portalHref}`;
+          ? `${getWhatsAppGreeting(client)}\n\nIdentificamos uma pendência financeira em aberto na sua conta, no valor de ${amountFormatted}.\n\nPara manter tudo em dia, pedimos a regularização assim que possível.\n\nAcesse o financeiro por aqui:\n${portalHref}\n\nSe o pagamento já foi feito, pode desconsiderar. Estamos à disposição.`
+          : `${getWhatsAppGreeting(client)}\n\nPassando para lembrar: sua ${faturaLabel} de ${amountFormatted} ${verbo} em ${dueDateFormatted} (${daysLabel}).\n\nAcesse o financeiro por aqui:\n${portalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
         waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
       }
       await tracking.finalize(result.ok, waStatus);

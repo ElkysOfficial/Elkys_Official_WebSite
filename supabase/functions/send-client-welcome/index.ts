@@ -15,7 +15,12 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess, createServiceRoleClient } from "../_shared/auth.ts";
-import { getFormalGreeting, getClientFirstName, type Gender } from "../_shared/greeting.ts";
+import {
+  getFormalGreeting,
+  getWhatsAppGreeting,
+  getClientFirstName,
+  type Gender,
+} from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -114,7 +119,7 @@ serve(async (req) => {
     // repete a senha temporaria — apenas indica que ela foi enviada no e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — Boas-vindas ao Portal*\n\nOlá! Seu acesso ao Portal do Cliente da Elkys foi criado e já está ativo. As credenciais de acesso foram enviadas para o seu e-mail (${email}).\n\nAcessar o portal: ${portalHref}`;
+      const waText = `${getWhatsAppGreeting(client)} 👋\n\nSeu acesso ao Portal do Cliente da Elkys foi criado com sucesso e já está ativo.\n\nEsse portal foi preparado para facilitar seu acompanhamento, centralizar informações importantes e tornar nosso atendimento ainda mais próximo e organizado.\n\nAs credenciais de acesso foram enviadas para o e-mail ${email}.\n\nAcesse por aqui:\n${portalHref}\n\nQualquer dúvida no acesso, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

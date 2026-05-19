@@ -12,7 +12,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
-import { getFormalGreeting } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -137,8 +137,8 @@ serve(async (req) => {
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
       const waText = isStageChange
-        ? `*Elkys — Atualização de etapa*\n\nO projeto "${project_name}" avançou para a etapa "${to_value}". Acompanhe o progresso pelo portal.\n\nAcompanhar o projeto: ${projetoHref}`
-        : `*Elkys — Atualização de status*\n\nO status do projeto "${project_name}" foi atualizado para "${to_value}". Veja os detalhes no portal.\n\nAcompanhar o projeto: ${projetoHref}`;
+        ? `${getWhatsAppGreeting(client)}\n\nBoas notícias: o projeto "${project_name}" avançou para a etapa "${to_value}".\n\nAcompanhe o progresso por aqui:\n${projetoHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`
+        : `${getWhatsAppGreeting(client)}\n\nO status do projeto "${project_name}" foi atualizado para "${to_value}".\n\nVeja os detalhes por aqui:\n${projetoHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

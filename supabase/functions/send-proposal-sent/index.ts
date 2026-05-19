@@ -12,7 +12,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess } from "../_shared/auth.ts";
-import { getFormalGreeting, truncateAtWord } from "../_shared/greeting.ts";
+import { getFormalGreeting, getWhatsAppGreeting, truncateAtWord } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -140,7 +140,7 @@ serve(async (req) => {
     // Espelha o aviso no WhatsApp (curto + link). Falha nao afeta o e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — Nova proposta comercial*\n\nA proposta "${proposal.title}" (${formattedAmount}) está disponível no portal para sua análise.\n\nAnalisar proposta: ${proposalHref}`;
+      const waText = `${getWhatsAppGreeting(client)}\n\nPreparamos uma proposta para você: "${proposal.title}", no valor de ${formattedAmount}.\n\nEla já está disponível no portal para a sua análise, com calma e quando for melhor para você.\n\nAnalise a proposta por aqui:\n${proposalHref}\n\nQualquer dúvida, estamos à disposição para ajudar.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);

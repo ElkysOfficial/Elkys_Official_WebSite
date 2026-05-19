@@ -127,6 +127,17 @@ export function getGenericGreeting(now?: Date): string {
 }
 
 /**
+ * Saudação de abertura para mensagens de WhatsApp. Reaproveita a saudação
+ * formal (Bom dia/tarde/noite + Sr./Sra./Prezado(a) + nome) trocando a
+ * vírgula de e-mail por um fecho conversacional.
+ *   "Bom dia, Sr. João! Tudo bem?"
+ *   "Boa tarde, Sra. Maria! Tudo bem?"
+ */
+export function getWhatsAppGreeting(client: ClientLike, now?: Date): string {
+  return `${getFormalGreeting(client, now).replace(/,\s*$/, "")}! Tudo bem?`;
+}
+
+/**
  * Trunca uma string respeitando a fronteira de palavras e adiciona "…" ao
  * final quando cortada. Evita o típico "...scopo da propos" dos slice brutos.
  */

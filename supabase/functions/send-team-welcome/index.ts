@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { buildEmail, sendEmail, CORS } from "../_shared/email-template.ts";
 import { requireAdminAccess, createServiceRoleClient } from "../_shared/auth.ts";
-import { getTeamMemberGreeting, type Gender } from "../_shared/greeting.ts";
+import { getTeamMemberGreeting, getWhatsAppGreeting, type Gender } from "../_shared/greeting.ts";
 import { createCommunication } from "../_shared/comms-tracking.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 
@@ -101,7 +101,7 @@ serve(async (req) => {
     // repete a senha temporaria — apenas indica que ela foi enviada no e-mail.
     let waStatus: "sent" | "failed" | "skipped" = "skipped";
     if (recipientPhone) {
-      const waText = `*Elkys — Boas-vindas à equipe*\n\nSeu acesso ao painel interno da Elkys está ativo. As credenciais de acesso foram enviadas para o seu e-mail (${email}).\n\nAcessar o painel: ${panelHref}`;
+      const waText = `${getWhatsAppGreeting({ full_name: name, gender })} 👋\n\nSeu acesso ao painel interno da Elkys foi criado e já está ativo.\n\nAs credenciais de acesso foram enviadas para o seu e-mail ${email}.\n\nAcesse por aqui:\n${panelHref}\n\nQualquer dúvida no acesso, é só falar com a gente.`;
       waStatus = (await sendWhatsApp(recipientPhone, waText)) ? "sent" : "failed";
     }
     await tracking.finalize(result.ok, waStatus);
