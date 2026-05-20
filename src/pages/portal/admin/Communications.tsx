@@ -59,6 +59,7 @@ const KIND_LABELS: Record<string, string> = {
   document_added: "Documento adicionado",
   proposal_sent: "Proposta enviada",
   proposal_expiry: "Proposta expirando",
+  proposal_expired: "Proposta expirada",
   contract_validation: "Validação de contrato",
   project_created: "Projeto criado",
   project_stage: "Mudança de etapa",
@@ -72,6 +73,34 @@ const KIND_LABELS: Record<string, string> = {
   password_reset: "Redefinição de senha",
 };
 
+/**
+ * Classifica a audiencia de cada tipo de comunicacao. Sem isso, todas as
+ * mensagens caem no balde "cliente" e a UI mostra "Sem cliente vinculado"
+ * para envios que sao deliberadamente internos (boas-vindas de membro novo
+ * ou alerta de ticket pra equipe de suporte).
+ *
+ *   "cliente"  → destinatario e o cliente da Elkys
+ *   "equipe"   → destinatario e um membro da equipe interna
+ *   "sistema"  → fluxo automatico sem alvo humano fixo (recuperacao de senha)
+ */
+type Audience = "cliente" | "equipe" | "sistema";
+
+const KIND_AUDIENCE: Record<string, Audience> = {
+  team_welcome: "equipe",
+  ticket_opened: "equipe",
+  password_reset: "sistema",
+};
+
+function audienceOf(kind: string): Audience {
+  return KIND_AUDIENCE[kind] ?? "cliente";
+}
+
+function audienceLabel(aud: Audience): string {
+  if (aud === "equipe") return "Equipe Elkys";
+  if (aud === "sistema") return "Sistema (envio automático)";
+  return "Cliente";
+}
+
 function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind;
 }
@@ -83,7 +112,7 @@ const PERIODS = [
 ] as const;
 
 function pct(part: number, total: number): string {
-  if (total <= 0) return "—";
+  if (total <= 0) return "0%";
   return `${Math.round((part / total) * 100)}%`;
 }
 
@@ -265,14 +294,19 @@ export default function Communications() {
       .map(([kind, v]) => ({ kind: kindLabel(kind), ...v }))
       .sort((a, b) => b.sent - a.sent);
 
-    // Breakdown por cliente — top N por volume de envio. Mostra quem mais
-    // recebe comunicacao e como cada um engaja.
+    // Breakdown por cliente — apenas comms de audiencia "cliente". Envios
+    // pra equipe (team_welcome, ticket_opened) e fluxos de sistema (password
+    // reset) sao filtrados, evitando poluir o ranking com "Equipe Elkys"
+    // ou "Sem cliente" no topo.
+    const clientOnlyComms = inScopeComms.filter(
+      (c) => audienceOf(c.kind) === "cliente" && c.client_id
+    );
     const byClientMap = new Map<
       string,
       { clientId: string; sent: number; open: number; click: number }
     >();
-    for (const c of inScopeComms) {
-      const key = c.client_id ?? "__no_client__";
+    for (const c of clientOnlyComms) {
+      const key = c.client_id as string;
       if (!byClientMap.has(key))
         byClientMap.set(key, { clientId: key, sent: 0, open: 0, click: 0 });
       const k = byClientMap.get(key)!;
@@ -283,28 +317,47 @@ export default function Communications() {
     const byClient = [...byClientMap.values()]
       .map((v) => ({
         ...v,
-        name:
-          v.clientId === "__no_client__"
-            ? "Sem cliente vinculado"
-            : (clientNameById.get(v.clientId) ?? "Cliente removido"),
+        // Cliente que nao consta no map pode ter sido arquivado/removido
+        // do CRM mas ainda tem historico de comunicacao — label honesta
+        // sem alarme.
+        name: clientNameById.get(v.clientId) ?? "Cliente arquivado",
       }))
       .sort((a, b) => b.sent - a.sent)
       .slice(0, 10);
 
-    // Tabela de recentes — mostra as duas colunas de canal lado a lado.
-    const recent = comms.slice(0, 50).map((c) => ({
-      id: c.id,
-      kind: kindLabel(c.kind),
-      recipientEmail: c.recipient_email ?? "—",
-      recipientPhone: c.recipient_phone ?? null,
-      clientName: c.client_id ? (clientNameById.get(c.client_id) ?? "—") : "—",
-      createdAt: c.created_at,
-      emailStatus: c.email_status,
-      whatsappStatus: c.whatsapp_status,
-      opened: openIds.has(c.id),
-      emailClicked: emailClickIds.has(c.id),
-      waClicked: waClickIds.has(c.id),
-    }));
+    // Tabela de recentes — categoriza por audiencia e exibe label claro
+    // em vez de "—". Coluna "Para quem" substitui "Cliente" porque algumas
+    // comms sao internas (equipe ou sistema) e seria errado rotular como
+    // cliente.
+    const recent = comms.slice(0, 50).map((c) => {
+      const aud = audienceOf(c.kind);
+      let displayTarget: string;
+      if (aud === "cliente") {
+        displayTarget = c.client_id
+          ? (clientNameById.get(c.client_id) ?? "Cliente arquivado")
+          : "Cliente não identificado";
+      } else if (aud === "equipe") {
+        // Para envios internos o destinatario costuma estar no campo de
+        // e-mail (lista TICKET_NOTIFY_EMAILS ou e-mail do membro).
+        displayTarget = "Equipe Elkys";
+      } else {
+        displayTarget = "Sistema";
+      }
+      return {
+        id: c.id,
+        kind: kindLabel(c.kind),
+        audience: aud,
+        recipientEmail: c.recipient_email ?? "Sem e-mail",
+        recipientPhone: c.recipient_phone ?? null,
+        displayTarget,
+        createdAt: c.created_at,
+        emailStatus: c.email_status,
+        whatsappStatus: c.whatsapp_status,
+        opened: openIds.has(c.id),
+        emailClicked: emailClickIds.has(c.id),
+        waClicked: waClickIds.has(c.id),
+      };
+    });
 
     return {
       total: comms.length,
@@ -370,6 +423,40 @@ export default function Communications() {
         </div>
       </div>
 
+      {/* Legenda explicativa — separa as 3 audiencias para deixar claro
+          que esta tela mistura comunicacao com cliente, com a equipe
+          interna e fluxos automaticos de sistema. */}
+      <Card>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-3 sm:p-5">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              Cliente
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Mensagens enviadas para clientes da carteira — cobranças, propostas, status de
+              projeto, documentos, suporte.
+            </p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex h-5 items-center rounded-full bg-accent/10 px-2 text-[10px] font-semibold uppercase tracking-wide text-accent">
+              Equipe
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Alertas internos para a equipe Elkys — boas-vindas de novo membro e notificações de
+              tickets abertos pelos clientes.
+            </p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex h-5 items-center rounded-full bg-muted px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Sistema
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Envios automáticos sem alvo humano direto, como o link de recuperação de senha.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Cards de topo (adaptam ao canal selecionado) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricTile
@@ -394,7 +481,7 @@ export default function Communications() {
         />
         <MetricTile
           label="Taxa de abertura"
-          value={channel === "whatsapp" ? "—" : pct(metrics.opens, metrics.totalSent)}
+          value={channel === "whatsapp" ? "Não medido" : pct(metrics.opens, metrics.totalSent)}
           icon={Eye}
           tone="accent"
           hint={
@@ -559,9 +646,15 @@ export default function Communications() {
           {metrics.byClient.length > 0 ? (
             <Card>
               <CardContent className="p-4 sm:p-5">
-                <h2 className="mb-3 text-sm font-semibold text-foreground">
-                  Top 10 clientes — engajamento
-                </h2>
+                <div className="mb-3 space-y-1">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Top 10 clientes por engajamento
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Apenas mensagens enviadas para clientes da carteira (envios para a equipe Elkys
+                    e fluxos de sistema não entram neste ranking).
+                  </p>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
@@ -621,8 +714,8 @@ export default function Communications() {
                   <thead>
                     <tr className="border-b border-border/60 text-[10px] uppercase tracking-wide text-muted-foreground">
                       <th className="px-4 py-2 font-semibold sm:px-5">Tipo</th>
-                      <th className="px-4 py-2 font-semibold">Cliente</th>
-                      <th className="px-4 py-2 font-semibold">Destinatário</th>
+                      <th className="px-4 py-2 font-semibold">Para quem</th>
+                      <th className="px-4 py-2 font-semibold">Contato</th>
                       <th className="px-4 py-2 font-semibold">Enviado em</th>
                       <th className="px-4 py-2 font-semibold">E-mail</th>
                       <th className="px-4 py-2 font-semibold">WhatsApp</th>
@@ -640,16 +733,39 @@ export default function Communications() {
                           {row.kind}
                         </td>
                         <td
-                          className="max-w-[180px] truncate px-4 py-2.5 text-muted-foreground"
-                          title={row.clientName}
+                          className="max-w-[200px] px-4 py-2.5"
+                          title={`${audienceLabel(row.audience)} • ${row.displayTarget}`}
                         >
-                          {row.clientName}
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              row.audience === "cliente"
+                                ? "bg-primary/10 text-primary"
+                                : row.audience === "equipe"
+                                  ? "bg-accent/10 text-accent"
+                                  : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {row.audience === "cliente"
+                              ? "Cliente"
+                              : row.audience === "equipe"
+                                ? "Equipe"
+                                : "Sistema"}
+                          </span>
+                          <p className="mt-1 truncate text-foreground" title={row.displayTarget}>
+                            {row.displayTarget}
+                          </p>
                         </td>
                         <td
-                          className="max-w-[200px] truncate px-4 py-2.5 text-muted-foreground"
-                          title={`${row.recipientEmail}${row.recipientPhone ? ` · ${row.recipientPhone}` : ""}`}
+                          className="max-w-[220px] truncate px-4 py-2.5 text-muted-foreground"
+                          title={`${row.recipientEmail}${row.recipientPhone ? ` • ${row.recipientPhone}` : ""}`}
                         >
-                          {row.recipientEmail}
+                          <span className="block truncate">{row.recipientEmail}</span>
+                          {row.recipientPhone ? (
+                            <span className="block truncate text-[11px] opacity-80">
+                              {row.recipientPhone}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-2.5 text-muted-foreground">
                           {formatDateTime(row.createdAt)}
@@ -664,7 +780,13 @@ export default function Communications() {
                                   : "muted"
                             }
                             label={
-                              row.emailStatus === "sent" ? "Enviado" : (row.emailStatus ?? "—")
+                              row.emailStatus === "sent"
+                                ? "Enviado"
+                                : row.emailStatus === "failed"
+                                  ? "Falhou"
+                                  : row.emailStatus === "pending"
+                                    ? "Pendente"
+                                    : "Não enviado"
                             }
                           />
                         </td>
@@ -687,7 +809,7 @@ export default function Communications() {
                               }
                             />
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-[11px] text-muted-foreground">Não aplicável</span>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
@@ -697,11 +819,13 @@ export default function Communications() {
                           <span className="inline-flex items-center gap-1">
                             <DotIndicator on={row.emailClicked || row.waClicked} />
                             {row.emailClicked && row.waClicked ? (
-                              <span className="text-[10px] text-muted-foreground">e-mail+WA</span>
+                              <span className="text-[10px] text-muted-foreground">e-mail + WA</span>
                             ) : row.waClicked ? (
-                              <span className="text-[10px] text-muted-foreground">WA</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                via WhatsApp
+                              </span>
                             ) : row.emailClicked ? (
-                              <span className="text-[10px] text-muted-foreground">e-mail</span>
+                              <span className="text-[10px] text-muted-foreground">via e-mail</span>
                             ) : null}
                           </span>
                         </td>
@@ -715,11 +839,20 @@ export default function Communications() {
         </>
       )}
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        A <strong>abertura</strong> é medida por um pixel invisível e é apenas indicativa — clientes
-        de e-mail com proxy de imagem podem inflar ou atrasar a contagem. O <strong>clique</strong>{" "}
-        (via link encurtado) é o sinal mais confiável.
-      </p>
+      <div className="space-y-1.5 rounded-lg border border-border/50 bg-muted/30 p-3 text-[11px] leading-relaxed text-muted-foreground">
+        <p>
+          <strong className="text-foreground">Como ler abertura e clique:</strong> a abertura de
+          e-mail é medida por um pixel invisível e é apenas indicativa. Clientes de e-mail (Gmail,
+          Outlook, Apple Mail) que usam proxy de imagem podem inflar ou atrasar a contagem. O clique
+          no link encurtado é o sinal mais confiável de engajamento real.
+        </p>
+        <p>
+          <strong className="text-foreground">WhatsApp não rastreia abertura:</strong> mensagens de
+          texto no WhatsApp não carregam pixel. Por isso a taxa de abertura aparece como &quot;Não
+          medido&quot; quando o filtro está em WhatsApp. O clique no link do WhatsApp é rastreado
+          normalmente.
+        </p>
+      </div>
     </div>
   );
 }
