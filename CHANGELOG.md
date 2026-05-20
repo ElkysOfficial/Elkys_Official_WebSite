@@ -3,6 +3,36 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.1.1] - 2026-05-20
+
+Patch de segurança e clareza no dashboard de Comunicações.
+
+### Segurança
+
+- Resolvidas 31 vulnerabilidades reportadas pelo Dependabot (18 alta, 13
+  moderada), todas em dependências transitivas. Pacotes elevados pela
+  transitividade: minimatch (9 ReDoS), dompurify (4 bypass), picomatch
+  (4 ReDoS/injection), vite (3 path traversal/WebSocket), flatted (2
+  DoS/Prototype Pollution), brace-expansion (2 DoS), ws, postcss, yaml,
+  svgo, immutable, rollup e ajv. Resultado: `npm audit` reporta 0
+  vulnerabilidades.
+
+### Correção de bug
+
+- Dashboard de Comunicações deixou de mostrar "Sem cliente vinculado"
+  e "Cliente removido" em envios que são deliberadamente internos. Cada
+  mensagem é agora classificada como sendo para um cliente, para a
+  equipe Elkys ou um envio de sistema, com badge colorida e nome de
+  contexto. Boas-vindas de novo membro e alertas de ticket aberto não
+  aparecem mais misturados com clientes.
+- Ranking de Top 10 clientes agora filtra apenas envios para clientes,
+  ignorando comunicação interna e fluxos de sistema.
+- Substituídos os traços (`—`) por descrições claras em toda a tela:
+  "Não medido", "Não aplicável", "Não enviado", "0%".
+- Cabeçalho da tela ganhou legenda explicando as 3 audiências e rodapé
+  expandido detalhando como ler abertura e clique no e-mail versus
+  WhatsApp.
+
 ## [3.1.0] - 2026-05-20
 
 Consolidação ampla de UX nos portais admin e cliente, fechamento do ciclo de
