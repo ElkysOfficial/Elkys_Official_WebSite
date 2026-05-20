@@ -47,7 +47,6 @@ import {
 } from "@/assets/icons";
 
 const SIDEBAR_STORAGE_KEY = "elkys-admin-sidebar-collapsed";
-const SIDEBAR_SECTIONS_STORAGE_KEY = "elkys-admin-sidebar-sections-collapsed";
 
 // Mapeia o role principal do usuario para o slug de dominio usado em
 // /tarefas/:domain e /calendario/:domain. Admins (admin/admin_super) recebem
@@ -542,7 +541,15 @@ export default function AdminLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  // Sidebar sempre inicia com todas as secoes colapsadas. A secao que contem
+  // a rota ativa e auto-expandida via `containsActive` no render.
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const section of buildNavSections(null)) {
+      if (section.label) initial[section.label] = true;
+    }
+    return initial;
+  });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [profileName, setProfileName] = useState("Usuário logado");
@@ -557,29 +564,12 @@ export default function AdminLayout() {
 
     const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
     if (storedValue !== null) setSidebarCollapsed(storedValue === "true");
-
-    const storedSections = window.localStorage.getItem(SIDEBAR_SECTIONS_STORAGE_KEY);
-    if (storedSections) {
-      try {
-        const parsed = JSON.parse(storedSections);
-        if (parsed && typeof parsed === "object") {
-          setCollapsedSections(parsed as Record<string, boolean>);
-        }
-      } catch {
-        // ignore malformed payload — defaults para tudo expandido.
-      }
-    }
   }, []);
 
   useEffect(() => {
     if (!mounted || typeof window === "undefined") return;
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
   }, [mounted, sidebarCollapsed]);
-
-  useEffect(() => {
-    if (!mounted || typeof window === "undefined") return;
-    window.localStorage.setItem(SIDEBAR_SECTIONS_STORAGE_KEY, JSON.stringify(collapsedSections));
-  }, [mounted, collapsedSections]);
 
   const toggleSection = useCallback((label: string) => {
     setCollapsedSections((prev) => ({ ...prev, [label]: !prev[label] }));

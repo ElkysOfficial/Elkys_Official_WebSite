@@ -3,6 +3,21 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.2.1] - 2026-05-20
+
+Polish de UI no portal admin.
+
+### Tela
+
+- Sidebar agora sempre inicia com todas as seções colapsadas. A seção que
+  contém a rota ativa é auto-expandida pelo `containsActive` durante o
+  render. Antes o estado de colapso ficava persistido em localStorage
+  (`SIDEBAR_SECTIONS_STORAGE_KEY`) e com o tempo divergia da realidade da
+  navegação. Removida essa persistência.
+- Card "Cobranças vencidas" no Overview passou a ocupar duas colunas em
+  telas xl (>= 1280px) via `xl:col-span-2`. Antes ficava espremido em uma
+  coluna só, com texto cortado quando havia múltiplas linhas.
+
 ## [3.2.0] - 2026-05-20
 
 Dashboard de Comunicações repensado por canal e audiência, correção do bug do

@@ -1682,7 +1682,7 @@ export default function AdminOverview() {
 
               {/* Overdue summary */}
               {summary.overdueReceivables > 0 && (
-                <Card className="rounded-2xl border-border/80 bg-card/95">
+                <Card className="rounded-2xl border-border/80 bg-card/95 xl:col-span-2">
                   <CardContent className="space-y-3 p-3 sm:p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
