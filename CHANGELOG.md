@@ -3,6 +3,31 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.3.0] - 2026-05-21
+
+Barra lateral do portal admin inicia recolhida e novo sistema de atalhos de
+teclado para navegação rápida.
+
+### Novidades
+
+- Sistema de atalhos de teclado em três camadas, pensado para um público
+  misto, com muitas pessoas não técnicas. O estudo de benchmark de 13 produtos
+  que embasou as decisões está em `docs/KEYBOARD-SHORTCUTS.md`.
+  - Busca: `Ctrl+K`, `Cmd+K` e `/` abrem a paleta de busca. Sem mudança.
+  - Ajuda: `?` abre um painel com a lista completa de atalhos, gerada a partir
+    da barra lateral do usuário.
+  - Navegação: a sequência `E` (de Elkys) seguida de uma letra leva direto à
+    área. Ao apertar `E`, um indicador na tela confirma que a sequência está
+    ativa.
+- Cada área da barra lateral exibe sua letra de atalho quando a barra está
+  expandida.
+- `[` recolhe e expande a barra lateral.
+
+### Tela
+
+- A barra lateral do portal admin agora inicia recolhida (modo icon-only). A
+  preferência do usuário, se já gravada no localStorage, continua valendo.
+
 ## [3.2.1] - 2026-05-20
 
 Polish de UI no portal admin.
