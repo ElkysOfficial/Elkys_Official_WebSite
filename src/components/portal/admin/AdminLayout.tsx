@@ -1,5 +1,5 @@
-import { lazy, memo, Suspense, useEffect, useMemo, useState, useCallback } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import PortalErrorBoundary from "@/components/portal/shared/PortalErrorBoundary";
 import PortalLoading from "@/components/portal/shared/PortalLoading";
 import { useTheme } from "@/hooks/useDarkMode";
@@ -11,6 +11,9 @@ import AdminNotificationBell from "@/components/portal/admin/AdminNotificationBe
 // CommandPalette e carregado sob demanda: so monta o chunk quando o usuario
 // abre a paleta pela primeira vez. Mantem o entry do portal enxuto.
 const CommandPalette = lazy(() => import("@/components/portal/admin/CommandPalette"));
+// Janela de ajuda de atalhos (Camada 2 do Sistema de Atalhos Elkys), aberta
+// pela tecla "?". Tambem sob demanda para nao pesar o entry do portal.
+const KeyboardShortcutsHelp = lazy(() => import("@/components/portal/admin/KeyboardShortcutsHelp"));
 import EnvironmentBanner from "@/components/portal/shared/EnvironmentBanner";
 import PortalBreadcrumbs from "@/components/portal/shared/PortalBreadcrumbs";
 import { resolveAdminBreadcrumbs } from "@/lib/admin-breadcrumbs";
@@ -92,6 +95,8 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   roles: AppRole[];
   badge?: string;
+  /** Letra de destino da Camada 3 dos atalhos (sequencia "E" + letra). */
+  shortcut: string;
 };
 
 type NavSection = {
@@ -130,6 +135,7 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Visão Geral",
+          shortcut: "V",
           href: "/portal/admin",
           icon: BarChart,
           roles: ["admin_super", "admin"],
@@ -141,6 +147,7 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "CRM",
+          shortcut: "C",
           href: "/portal/admin/crm",
           icon: Target,
           roles: ["admin_super", "admin", "comercial", "marketing"],
@@ -152,18 +159,21 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Visão financeira",
+          shortcut: "F",
           href: "/portal/admin/financeiro",
           icon: Banknote,
           roles: ["admin_super", "admin", "financeiro"],
         },
         {
           label: "Clientes",
+          shortcut: "L",
           href: "/portal/admin/clientes",
           icon: Building2,
           roles: ["admin_super", "admin", "financeiro", "comercial"],
         },
         {
           label: "Régua de cobrança",
+          shortcut: "R",
           href: "/portal/admin/cobranca-automatica",
           icon: Zap,
           roles: ["admin_super", "admin", "financeiro"],
@@ -175,6 +185,7 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Contratos",
+          shortcut: "O",
           // Query param casa com o badge contracts:validating — clicar leva
           // direto pra lista filtrada por em_validacao.
           href: "/portal/admin/contratos?status=em_validacao",
@@ -189,12 +200,14 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Projetos",
+          shortcut: "P",
           href: "/portal/admin/projetos",
           icon: AgileMono,
           roles: ["admin_super", "admin", "developer", "designer", "po", "support", "financeiro"],
         },
         {
           label: "Suporte",
+          shortcut: "S",
           // sla=risk casa com o badge tickets:sla.
           href: "/portal/admin/suporte?sla=risk",
           icon: SuporteFill,
@@ -208,6 +221,7 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Tarefas",
+          shortcut: "T",
           href: tasksHref,
           icon: CheckCircle,
           roles: [
@@ -226,6 +240,7 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
         },
         {
           label: "Calendário",
+          shortcut: "A",
           href: calendarHref,
           icon: CalendarX,
           roles: [
@@ -243,12 +258,14 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
         },
         {
           label: "Documentos Dev",
+          shortcut: "D",
           href: "/portal/admin/documentos/desenvolvedor",
           icon: Code2,
           roles: ["admin_super", "admin", "developer", "designer", "po"],
         },
         {
           label: "Documentos M&D",
+          shortcut: "M",
           href: "/portal/admin/documentos/marketing-design",
           icon: Folder,
           roles: ["admin_super", "admin", "marketing"],
@@ -260,18 +277,21 @@ function buildNavSections(primaryDomain: string | null): NavSection[] {
       items: [
         {
           label: "Equipe",
+          shortcut: "Q",
           href: "/portal/admin/equipe",
           icon: Users,
           roles: ["admin_super", "admin"],
         },
         {
           label: "Comunicações",
+          shortcut: "N",
           href: "/portal/admin/comunicacoes",
           icon: Mail,
           roles: ["admin_super", "admin", "comercial", "financeiro"],
         },
         {
           label: "Auditoria",
+          shortcut: "I",
           href: "/portal/admin/audit-log",
           icon: Shield,
           roles: ["admin_super", "admin"],
@@ -537,10 +557,27 @@ export default function AdminLayout() {
         .filter((section) => section.items.length > 0),
     [roles, primaryDomain]
   );
+  // Lista plana das areas visiveis, na ordem de render da barra lateral. E a
+  // base da Camada 3 dos atalhos: Alt+N salta para o N-esimo item daqui.
+  const flatNavItems = useMemo(
+    () => navSections.flatMap((section) => section.items),
+    [navSections]
+  );
+  // Mapa letra-de-atalho -> rota, base da Camada 3 (sequencia "E" + letra).
+  const navByShortcut = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of flatNavItems) {
+      map.set(item.shortcut.toLowerCase(), item.href);
+    }
+    return map;
+  }, [flatNavItems]);
   const { resolvedTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Sidebar inicia recolhida (icon-only) por padrao. A preferencia do usuario,
+  // se ja existir no localStorage, sobrescreve isso no efeito de mount abaixo.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   // Sidebar sempre inicia com todas as secoes colapsadas. A secao que contem
   // a rota ativa e auto-expandida via `containsActive` no render.
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
@@ -551,6 +588,12 @@ export default function AdminLayout() {
     return initial;
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Sequencia de atalho "E" + letra (Camada 3). O ref espelha o state pra ser
+  // lido dentro do handler de teclado sem recriar o listener a cada tecla.
+  const [leaderArmed, setLeaderArmed] = useState(false);
+  const leaderArmedRef = useRef(false);
+  const leaderTimeoutRef = useRef<number | null>(null);
   const [mounted, setMounted] = useState(false);
   const [profileName, setProfileName] = useState("Usuário logado");
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
@@ -575,26 +618,94 @@ export default function AdminLayout() {
     setCollapsedSections((prev) => ({ ...prev, [label]: !prev[label] }));
   }, []);
 
-  // Atalho global Cmd+K (Mac) / Ctrl+K (Windows/Linux) abre a paleta.
-  // Tambem suporta "/" como atalho secundario quando o foco nao esta em
-  // input/textarea/contenteditable — convencao do GitHub e Discord.
+  // Sistema de Atalhos Elkys (ver docs/KEYBOARD-SHORTCUTS.md):
+  //  Camada 1 - Busca: Ctrl/Cmd+K ou "/" abrem a paleta.
+  //  Camada 2 - Ajuda: "?" abre/fecha o painel de atalhos.
+  //  Camada 3 - Salto: a sequencia "E" (de Elkys) + letra vai para a area.
+  //             "E" arma o modo por 2s e mostra um indicador; a letra
+  //             seguinte navega. Cancelavel com Esc.
+  // Atalhos sem modificador so disparam fora de campos editaveis.
   useEffect(() => {
+    const clearLeaderTimeout = () => {
+      if (leaderTimeoutRef.current !== null) {
+        window.clearTimeout(leaderTimeoutRef.current);
+        leaderTimeoutRef.current = null;
+      }
+    };
+    const disarmLeader = () => {
+      clearLeaderTimeout();
+      leaderArmedRef.current = false;
+      setLeaderArmed(false);
+    };
+
     const handleKey = (e: KeyboardEvent) => {
-      const isCmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
       const target = e.target as HTMLElement | null;
       const isEditable =
         !!target &&
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      // Com a sequencia armada, a proxima tecla escolhe a area.
+      if (leaderArmedRef.current) {
+        // Teclas modificadoras sozinhas nao contam (ex.: Shift antes da letra).
+        if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") {
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          disarmLeader();
+          return;
+        }
+        const dest = navByShortcut.get(e.key.toLowerCase());
+        disarmLeader();
+        if (dest && !isEditable) {
+          e.preventDefault();
+          setHelpOpen(false);
+          navigate(dest);
+        }
+        return;
+      }
+
+      const isCmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
       const isSlashShortcut = e.key === "/" && !isEditable;
 
       if (isCmdK || isSlashShortcut) {
         e.preventDefault();
         setPaletteOpen((open) => !open);
+        return;
+      }
+
+      if (isEditable || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // "?" abre/fecha a ajuda de atalhos.
+      if (e.key === "?") {
+        e.preventDefault();
+        setHelpOpen((open) => !open);
+        return;
+      }
+
+      // "[" alterna o estado recolhido da sidebar.
+      if (e.key === "[") {
+        e.preventDefault();
+        setSidebarCollapsed((current) => !current);
+        return;
+      }
+
+      // "E" arma a sequencia de salto da Camada 3.
+      if (e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        clearLeaderTimeout();
+        leaderArmedRef.current = true;
+        setLeaderArmed(true);
+        leaderTimeoutRef.current = window.setTimeout(disarmLeader, 2000);
       }
     };
+
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      clearLeaderTimeout();
+    };
+  }, [navigate, navByShortcut]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -868,8 +979,8 @@ export default function AdminLayout() {
                       hidden={collapsed}
                       className="space-y-0.5"
                     >
-                      {section.items.map(({ label, href, icon: Icon, roles: _roles, badge }) => {
-                        void _roles;
+                      {section.items.map((item) => {
+                        const { label, href, icon: Icon, badge, shortcut } = item;
                         const active = isItemActive(location.pathname, href);
                         const badgeCount = resolveBadgeValue(sidebarBadges, badge);
 
@@ -949,6 +1060,13 @@ export default function AdminLayout() {
                                   {badgeCount > 99 ? "99+" : badgeCount}
                                 </span>
                               )
+                            ) : !sidebarCollapsed ? (
+                              <kbd
+                                aria-hidden="true"
+                                className="relative z-10 hidden h-4 items-center justify-center rounded border border-border/60 bg-background/60 px-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/45 transition-colors group-hover:text-muted-foreground/75 lg:inline-flex"
+                              >
+                                {`E ${shortcut}`}
+                              </kbd>
                             ) : null}
                           </Link>
                         );
@@ -1120,6 +1238,38 @@ export default function AdminLayout() {
         <Suspense fallback={null}>
           <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         </Suspense>
+      ) : null}
+
+      {helpOpen ? (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsHelp
+            open={helpOpen}
+            onClose={() => setHelpOpen(false)}
+            navItems={flatNavItems.map((item) => ({
+              label: item.label,
+              shortcut: item.shortcut,
+            }))}
+          />
+        </Suspense>
+      ) : null}
+
+      {leaderArmed ? (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-border/75 bg-card px-3.5 py-2 text-xs shadow-xl">
+            <kbd className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-border/75 bg-background px-1 text-[10px] font-semibold text-foreground">
+              E
+            </kbd>
+            <span className="text-muted-foreground">aperte a letra da área</span>
+            <span className="text-muted-foreground/40">·</span>
+            <kbd className="inline-flex h-5 items-center justify-center rounded border border-border/75 bg-background px-1.5 text-[10px] font-semibold text-muted-foreground">
+              Esc
+            </kbd>
+            <span className="text-muted-foreground/70">cancelar</span>
+          </div>
+        </div>
       ) : null}
     </div>
   );
