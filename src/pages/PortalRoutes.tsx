@@ -32,6 +32,15 @@ const AdminContracts = lazy(() => import("./portal/admin/Contracts"));
 const AdminTasks = lazy(() => import("./portal/admin/Tasks"));
 const AdminTeamHub = lazy(() => import("./portal/admin/TeamHub"));
 const AdminProfile = lazy(() => import("./portal/admin/Profile"));
+// Zona Core — Command Center executivo do ecossistema (protótipo).
+const CoreLayout = lazy(() => import("@/components/portal/core/CoreLayout"));
+const CoreCommandCenter = lazy(() => import("./portal/core/CommandCenter"));
+const CoreProducts = lazy(() => import("./portal/core/Products"));
+const CoreProductDetail = lazy(() => import("./portal/core/ProductDetail"));
+const CoreConsolidatedFinance = lazy(() => import("./portal/core/ConsolidatedFinance"));
+const CoreMetrics = lazy(() => import("./portal/core/Metrics"));
+const CoreComparison = lazy(() => import("./portal/core/Comparison"));
+const CoreInfrastructure = lazy(() => import("./portal/core/Infrastructure"));
 const ClientLayout = lazy(() => import("@/components/portal/client/ClientLayout"));
 const ClientOverview = lazy(() => import("./portal/client/Overview"));
 const ClientProjects = lazy(() => import("./portal/client/Projects"));
@@ -435,6 +444,75 @@ const PortalRoutes = () => (
           element={<Navigate to="/portal/admin/crm" replace state={{ crmTab: "pipeline" }} />}
         />
         <Route path="perfil" element={<AdminProfile />} />
+      </Route>
+
+      {/* Command Center — zona executiva do ecossistema (protótipo) */}
+      <Route
+        path="core"
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <MustChangePasswordGuardAdmin>
+              <CoreLayout />
+            </MustChangePasswordGuardAdmin>
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreCommandCenter />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="produtos"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreProducts />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="produtos/:slug"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreProductDetail />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="financeiro"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreConsolidatedFinance />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="metricas"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreMetrics />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="comparativo"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreComparison />
+            </PortalRoleGuard>
+          }
+        />
+        <Route
+          path="infra"
+          element={
+            <PortalRoleGuard allowedRoles={["admin_super", "admin"]}>
+              <CoreInfrastructure />
+            </PortalRoleGuard>
+          }
+        />
       </Route>
 
       {/* Client Portal */}
