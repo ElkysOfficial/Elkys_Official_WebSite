@@ -3,6 +3,20 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.3.2] - 2026-05-21
+
+Otimização do bundle inicial: React Query sai do carregamento da landing.
+
+### Performance
+
+- O `QueryClientProvider` foi movido do root (`App.tsx`) para o `PortalShell`,
+  que já é lazy e já hospeda o `AuthProvider`. Nenhuma página pública consome
+  React Query — apenas o portal (`AuthContext` e os hooks `useAdmin*` /
+  `useClient*`). Com isso o chunk `query-vendor` (~9 KB gzip) deixa de ser
+  baixado no boot da landing, junto com o `modulepreload` hint correspondente
+  e uma requisição HTTP. O React Query passa a carregar somente ao entrar em
+  `/login`, `/forgot-password` ou `/portal/*`.
+
 ## [3.3.1] - 2026-05-21
 
 A barra lateral do portal admin passa a sempre iniciar recolhida.
