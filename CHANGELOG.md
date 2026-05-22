@@ -3,6 +3,18 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.3.1] - 2026-05-21
+
+A barra lateral do portal admin passa a sempre iniciar recolhida.
+
+### Tela
+
+- A barra lateral do portal admin agora sempre inicia recolhida (modo
+  icon-only) a cada carregamento. Removida a persistência da preferência no
+  localStorage (`elkys-admin-sidebar-collapsed`), que reexpandia a barra para
+  quem a tivesse expandido antes. O usuário ainda pode expandi-la durante a
+  sessão, mas o estado não é mais mantido entre recarregamentos.
+
 ## [3.3.0] - 2026-05-21
 
 Barra lateral do portal admin inicia recolhida e novo sistema de atalhos de

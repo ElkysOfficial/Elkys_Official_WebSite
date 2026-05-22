@@ -49,8 +49,6 @@ import {
   Zap,
 } from "@/assets/icons";
 
-const SIDEBAR_STORAGE_KEY = "elkys-admin-sidebar-collapsed";
-
 // Mapeia o role principal do usuario para o slug de dominio usado em
 // /tarefas/:domain e /calendario/:domain. Admins (admin/admin_super) recebem
 // null — significam "visao geral, sem filtro de dominio" e a rota cai pra
@@ -575,8 +573,8 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Sidebar inicia recolhida (icon-only) por padrao. A preferencia do usuario,
-  // se ja existir no localStorage, sobrescreve isso no efeito de mount abaixo.
+  // Sidebar sempre inicia recolhida (icon-only). O usuario pode expandi-la
+  // durante a sessao, mas a cada novo carregamento ela volta ao estado recolhido.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   // Sidebar sempre inicia com todas as secoes colapsadas. A secao que contem
   // a rota ativa e auto-expandida via `containsActive` no render.
@@ -602,17 +600,7 @@ export default function AdminLayout() {
   );
   useEffect(() => {
     setMounted(true);
-
-    if (typeof window === "undefined") return;
-
-    const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (storedValue !== null) setSidebarCollapsed(storedValue === "true");
   }, []);
-
-  useEffect(() => {
-    if (!mounted || typeof window === "undefined") return;
-    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
-  }, [mounted, sidebarCollapsed]);
 
   const toggleSection = useCallback((label: string) => {
     setCollapsedSections((prev) => ({ ...prev, [label]: !prev[label] }));
