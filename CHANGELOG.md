@@ -3,6 +3,22 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.4.2] - 2026-05-23
+
+UX dos seletores de período padronizada — "Mês atual" pré-selecionado.
+
+### UX
+
+- Botões de período no Overview (Receita & fluxo de caixa) e Forecast
+  (Previsão de receita) agora abrem com `1` pré-selecionado por default
+  (antes era `6M`). Label `1M` foi substituído por **"Mês atual"** no
+  histórico e **"Próximo mês"** no forecast — semanticamente mais claro
+  do que o número genérico.
+- Label "Crescimento do MRR (1M)" vira "Crescimento do MRR (Mês atual)"
+  quando `selectedPeriod=1`.
+- RevenueByClient já tinha o padrão "Mês atual" desde v3.4.0; agora o
+  comportamento é consistente em todo o portal admin.
+
 ## [3.4.1] - 2026-05-23
 
 Hotfix da v3.4.0 — corrige ReferenceError que quebrava a aba Análise do Finance.
