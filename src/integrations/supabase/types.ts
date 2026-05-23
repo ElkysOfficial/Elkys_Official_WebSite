@@ -2571,7 +2571,6 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean };
       is_admin_or_juridico: { Args: { _user_id: string }; Returns: boolean };
       mark_overdue_charges: { Args: never; Returns: undefined };
-      mark_overdue_clients_inadimplente: { Args: never; Returns: undefined };
       mark_validation_client: {
         Args: { p_client_name?: string; p_round_id: string };
         Returns: undefined;
