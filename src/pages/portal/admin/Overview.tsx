@@ -1288,8 +1288,10 @@ export default function AdminOverview() {
     queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null;
   const hasLoaded = !loading && !error;
 
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(6);
-  const [forecastPeriod, setForecastPeriod] = useState<PeriodOption>(6);
+  // Default = 1 (Mes atual / proximo mes) — abre na visao mais imediata,
+  // usuario expande pra janelas maiores se quiser comparativo.
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(1);
+  const [forecastPeriod, setForecastPeriod] = useState<PeriodOption>(1);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
 
   const handleQuickMarkPaid = useCallback(
@@ -1446,7 +1448,7 @@ export default function AdminOverview() {
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {option}M
+                      {option === 1 ? "Mês atual" : `${option}M`}
                     </button>
                   ))}
                 </div>
@@ -1459,7 +1461,11 @@ export default function AdminOverview() {
                   tone={periodNet >= 0 ? "success" : "destructive"}
                 />
                 <SurfaceStat
-                  label={`Crescimento do MRR (${selectedPeriod}M)`}
+                  label={
+                    selectedPeriod === 1
+                      ? "Crescimento do MRR (Mês atual)"
+                      : `Crescimento do MRR (${selectedPeriod}M)`
+                  }
                   value={
                     periodMrrChange.kind === "na"
                       ? "N/A"
@@ -1739,7 +1745,7 @@ export default function AdminOverview() {
                               : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          {m}M
+                          {m === 1 ? "Próximo mês" : `${m}M`}
                         </button>
                       ))}
                     </div>
