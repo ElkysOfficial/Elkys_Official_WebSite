@@ -3,6 +3,78 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.4.0] - 2026-05-23
+
+Auditoria minuciosa em 5 fases sobre todos os cálculos financeiros e do CRM
+do portal admin. 14 bugs corrigidos, 17 funções centralizadas em libs novas
+com 121 testes Vitest. Funil de leads simplificado. Duas migrations no
+Supabase. ADR-014 registrando o novo padrão.
+
+### Funil de leads simplificado
+
+- Status de lead reduzidos para 5 etapas:
+  `prospeccao → qualificado → proposta → ganho/perdido`. Removidos `novo`,
+  `diagnostico` e `negociacao`. Migration `lead_status_simplify_flow_v3`
+  remapeou os dados existentes. Pipeline (CRM) reescrito com 5 colunas
+  seguindo esse funil — projetos deixam de aparecer no pipeline (têm
+  `/portal/admin/projetos` próprio).
+
+### Métricas centralizadas (novo)
+
+- Criadas `src/lib/finance-metrics.ts` (13 funções + 11 constantes) e
+  `src/lib/crm-metrics.ts` (4 funções). Setup Vitest novo com `npm test` /
+  `npm test:watch`, 121 testes em ~500ms cobrindo edge cases (div/0, null,
+  dedup, IEEE-754 em centavos). ADR-014 documenta a decisão.
+
+### Bugs corrigidos
+
+- **Forecast divergente** entre Overview e Finance — Overview somava
+  propostas aprovadas (com double-count após contrato ativar); Finance só
+  agendadas. Ambos agora consomem `computeForecastRevenue` (charges
+  agendadas + contratos rascunho).
+- **`pipelineCount` esquecia leads em proposta** no Finance.
+- **`overdueProjects` divergente** — Projects.tsx incluía status
+  `negociacao`/`pausado`; Overview/Finance só `em_andamento`. Unificado
+  via `isProjectOverdue`.
+- **Form do ClientDetail mostrava status legacy** enquanto o header
+  mostrava `client_financial_summary.contract_status_calculated` (view).
+  `deriveContractSnapshot` agora recebe o summary e prioriza a fonte de
+  verdade calculada.
+- **`Conversion rate` em Leads** trocada de `ganho/total` (penaliza
+  abertos) para `ganho/(ganho+perdido)` (padrão CRM).
+- **`Approval rate` de Propostas** passou a incluir `expirada` como
+  rejeição implícita no denominador.
+- **`Top sources` em Leads** agora normaliza casing/whitespace.
+- **`newLast7Days`** valida `Number.isFinite` para datas inválidas.
+- **`Delinquency`** usa constantes `AGING_BUCKET_30/60` da lib em vez de
+  thresholds hardcoded.
+- **Label "1M" em RevenueByClient** renomeada para "Mês atual" e
+  pré-selecionada como default.
+- **`<Button size="sm" size="sm">`** duplicado em Finance.tsx removido.
+
+### Backend (Supabase)
+
+- **Migration `drop_dead_rpc_mark_overdue_clients_inadimplente`** —
+  removida RPC órfã desde v2.89.1 (cron desagendado pq guard P-18
+  bloqueava UPDATE em snapshot legacy). Verificadas zero referências
+  em crons, RPCs, triggers, views, RLS, frontend e edge functions.
+- **Migration `approve_proposal_idempotent_via_source_link`** — corrige
+  bug crítico onde duplo-clique em "Aprovar proposta" criava 2 contratos
+  - 2 tarefas pro jurídico + 2 notificações + 2 timeline events. Nova
+    coluna `project_contracts.source_proposal_id` (FK pra proposals) +
+    backfill via timeline_events + index parcial. RPC reescrita pra
+    detectar reentrada e retornar contrato existente.
+
+### Limitações conhecidas
+
+- E2E Playwright (`npm run test:e2e`) precisa ser executado manualmente
+  antes da validação real.
+- 3 contratos legados ficaram sem `source_proposal_id` (não tinham event
+  `proposta_aprovada` na timeline). Perdem idempotência retroativa, mas
+  já estão criados e não são afetados por novas aprovações.
+- Edge functions de email/tracking (`send-*`, `check-*`, `track`) não
+  auditadas em profundidade — fora do escopo desta auditoria.
+
 ## [3.3.2] - 2026-05-21
 
 Otimização do bundle inicial: React Query sai do carregamento da landing.
