@@ -58,6 +58,12 @@ tags: [issues, debt, moc]
 | L7  | [[tasks-priorities-hardcoded]] — `bg-red-500`, `bg-orange-500`, etc. | DS        |
 | L8  | [[eyebrow-typography-divergent]] — `text-[10px]` vs `text-[11px]`    | DS        |
 
+## Auditoria 2026-05-25
+
+- [[_audit-2026-05-25/00-RELATORIO-FINAL|Relatório completo de modelagem]] — 37 tabelas + 3 views, 80 sec warnings, 256 perf issues, plano 3 ondas
+- [[_audit-2026-05-25/02-advisors|Advisors do Supabase Linter]] — raw
+- [[_audit-2026-05-25/03-codigo-vs-schema|Divergências código vs schema]]
+
 ## Convenções
 
 - Cada issue tem **link reverso** para [[../14-roadmap/index]] indicando onda alvo.
