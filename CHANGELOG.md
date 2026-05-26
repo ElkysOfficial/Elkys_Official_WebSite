@@ -3,6 +3,105 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.5.0] - 2026-05-26
+
+Auditoria completa de modelagem do banco + refactor estrutural seguindo o
+relatório em `obsidian_elkys/13-issues/_audit-2026-05-25/`. Quebras de schema
+e código aplicadas em conjunto para manter consistência entre frontend e DB.
+
+### Auditoria (Onda 1) — quick wins de segurança e performance
+
+- 4 índices/constraints duplicados removidos (`user_roles`, `client_contacts`,
+  `project_installments`, `projects`).
+- 9 funções com `search_path mutable` agora têm `SET search_path = public,
+pg_catalog` (previne hijack via objeto malicioso).
+- 49 índices criados em FKs sem cobertura (advisor `unindexed_foreign_keys`).
+- ~95 policies RLS reescritas trocando `auth.uid()` por `(SELECT auth.uid())`
+  para forçar initplan caching (advisor `auth_rls_initplan`).
+- 6 cron jobs migrados para Vault: secret `cron_function_bearer` em
+  `vault.secrets`, helper `public.cron_auth_header()` lê em runtime.
+  `SELECT` em `cron.job` revogado de `anon`/`authenticated`.
+- Buckets `email-assets` e `profile-photos` com listagem restrita (URLs
+  públicas via `public=true` continuam funcionando).
+
+### Auditoria (Onda 2) — consolidações estruturais
+
+- ~50 policies permissivas duplicadas consolidadas em 1 por (table, action)
+  com OR (advisor `multiple_permissive_policies`: 76 → 25).
+- DELETE policies explícitas em 7 tabelas operacionais; RESTRICTIVE deny em
+  `legal_acceptance_log`, `project_contract_versions`, `audit_logs`.
+- CHECK exclusive-arc em `timeline_events.source_*`, `team_tasks` (FKs
+  principais), `communications.entity_id`.
+- 8 FKs padronizadas: `expenses` e `proposals.lead_id` agora `SET NULL`;
+  `billing_actions_log.charge_id` agora `CASCADE`.
+- Trigger `fn_cleanup_auth_user_orphans` em `AFTER DELETE auth.users` limpa
+  ~25 colunas que referenciam o usuário sem FK formal.
+- **25 enums tipados** substituindo `text + CHECK` em `leads`, `proposals`,
+  `support_tickets`, `charges`, `projects`, `expenses`,
+  `marketing_calendar_events`, `notifications`, `billing_*`, `tracked_links`,
+  `tracking_events`, `communications`, `timeline_events`, `ticket_messages`,
+  `project_validation_rounds`, `admin_notifications`, `financial_goals`.
+
+### Auditoria (Onda 3) — refactor de modelagem
+
+- **DROP `internal_team_documents`** + adicionado `audience` e `client_id
+nullable` em `documents`. Unificação completa; UI `InternalDocuments.tsx`
+  migrada para `documents` com filtro de audience.
+- **DROP 8 colunas snapshot mortas em `clients`**: `monthly_value`,
+  `project_total_value`, `contract_status`, `contract_type`,
+  `contract_start`, `contract_end`, `scope_summary`, `payment_due_day`.
+  Trigger guard `fn_guard_clients_legacy_snapshots` removido. Frontend lê
+  exclusivamente da view `client_financial_summary` (campos `*_calculated`).
+- **DROP `team_members.system_role`**; nova view `team_members_with_role`
+  expõe `system_role` derivado de `user_roles` (fonte única).
+
+### Código adaptado
+
+- `src/hooks/useAdminClients.ts`: select sem colunas mortas; merge final
+  vem 100% da view calculada.
+- `src/pages/portal/admin/ClientDetail.tsx`: fallbacks `client.X` removidos
+  (snapshots mortos não existem mais); rendering só usa
+  `summary?.X_calculated` + entidades primárias (`project_contracts`).
+- `src/pages/portal/admin/Team.tsx`, `TeamCreate.tsx`, `TeamEdit.tsx`,
+  `Tasks.tsx`, `MarketingCalendar.tsx`: leituras passam pela view
+  `team_members_with_role`; escritas em `team_members` sem mais
+  `system_role`; rollback de delete sem o campo.
+- `src/pages/portal/admin/InternalDocuments.tsx`: queries em `documents`
+  com `audience` + mapeamento `type_label → description`.
+- `supabase/functions/send-invoice-due/index.ts`: status de inadimplência
+  vem da view `client_financial_summary.contract_status_calculated`.
+- `supabase/functions/_shared/notification-sender.ts`: filtro
+  `contract_status` agora resolve `client_id`s via view antes de aplicar.
+- `src/integrations/supabase/types.ts`: regenerado pelo MCP refletindo
+  schema novo (sem colunas mortas, com enums, com view nova).
+
+### Resultado dos advisors
+
+| Categoria   | Inicial | Final | Δ           |
+| ----------- | ------- | ----- | ----------- |
+| Security    | 80      | 69    | −11 (−14%)  |
+| Performance | 256     | 100   | −156 (−61%) |
+
+O que sobra é "by design": 68 advisors de `security_definer_function_executable`
+(helpers de RLS + RPCs precisam de SECURITY DEFINER) + 1 HIBP (toggle manual
+no painel). Performance: 75 unused_index (48 são os FK indexes novos, ainda
+sem load) + 25 `multiple_permissive` por dimensão de role `anon` vs
+`authenticated` (falso positivo do advisor).
+
+### Validação
+
+- `npx tsc --noEmit` ✓
+- `npm test` ✓ 121/121 testes Vitest
+- `npx eslint` ✓ nos 11 arquivos modificados
+- `npm run format:check` ✓
+- `npm run build` ✓ bundle 32.64s
+
+### ⚠️ Ação manual pendente
+
+Ativar HaveIBeenPwned password protection em
+**Supabase Dashboard → Auth → Settings → Password Protection** (não
+acessível via MCP).
+
 ## [3.4.2] - 2026-05-23
 
 UX dos seletores de período padronizada — "Mês atual" pré-selecionado.
