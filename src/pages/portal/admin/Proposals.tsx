@@ -18,6 +18,7 @@ import InlineStatusSelect, {
 import { AlertDialog, Button, Card, CardContent, Input, cn } from "@/design-system";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { computeProposalApprovalRate } from "@/lib/crm-metrics";
 import { exportCSV, exportPDF, type ExportColumn } from "@/lib/export";
 import { formatBRL, toCents } from "@/lib/masks";
 import { formatPortalDate, getClientDisplayName } from "@/lib/portal";
@@ -332,11 +333,9 @@ export default function Proposals() {
       proposals
         .filter((p) => p.status === "enviada" || p.status === "aprovada")
         .reduce((sum, p) => sum + toCents(p.total_amount), 0) / 100;
-    const aprovadas = proposals.filter((p) => p.status === "aprovada").length;
-    const decided = proposals.filter(
-      (p) => p.status === "aprovada" || p.status === "rejeitada"
-    ).length;
-    const taxaAprovacao = decided > 0 ? Math.round((aprovadas / decided) * 100) : 0;
+    // Taxa de aprovacao — fonte unica testada. Inclui expirada como rejeicao
+    // implicita no denominador (auditoria 2026-05-23).
+    const taxaAprovacao = computeProposalApprovalRate(proposals);
 
     return { total, emNegociacaoValue, taxaAprovacao };
   }, [proposals]);

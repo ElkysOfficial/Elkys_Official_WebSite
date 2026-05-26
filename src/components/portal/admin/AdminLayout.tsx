@@ -427,7 +427,7 @@ const adminPageMeta = [
   {
     match: (pathname: string) => pathname === "/portal/admin/pipeline",
     title: "Pipeline",
-    description: "Visao Kanban dos projetos por status para acompanhar o fluxo de entregas.",
+    description: "Kanban do funil comercial: Prospecção → Qualificado → Proposta → Ganho/Perdido.",
   },
   {
     match: (pathname: string) => pathname === "/portal/admin/receita-clientes",

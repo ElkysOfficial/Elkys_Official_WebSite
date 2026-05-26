@@ -276,7 +276,6 @@ export default function AdminTeamCreate() {
         senioridade: data.senioridade || null,
         manager_id: data.manager_id || null,
         role_title: roleLabel,
-        system_role: data.system_role,
         is_active: data.status === "active",
         must_change_password: true,
       });

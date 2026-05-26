@@ -11,6 +11,7 @@ import { Button, Card, CardContent, cn } from "@/design-system";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { exportCSV, exportPDF, type ExportColumn } from "@/lib/export";
+import { AGING_BUCKET_30, AGING_BUCKET_60 } from "@/lib/finance-metrics";
 import { formatBRL, getLocalDateIso, toCents } from "@/lib/masks";
 import { CHARGE_STATUS_META, formatPortalDate, getClientDisplayName } from "@/lib/portal";
 
@@ -53,9 +54,9 @@ function getDaysOverdue(dueDate: string): number {
 
 function matchesAgingFilter(days: number, filter: AgingFilter): boolean {
   if (filter === "all") return true;
-  if (filter === "0-30") return days <= 30;
-  if (filter === "30-60") return days > 30 && days <= 60;
-  return days > 60;
+  if (filter === "0-30") return days <= AGING_BUCKET_30;
+  if (filter === "30-60") return days > AGING_BUCKET_30 && days <= AGING_BUCKET_60;
+  return days > AGING_BUCKET_60;
 }
 
 export default function Delinquency() {

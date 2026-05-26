@@ -83,7 +83,17 @@ export async function processNotification(
       break;
     case "contract_status":
       if (notification.filter_contract_status) {
-        clientQuery = clientQuery.eq("contract_status", notification.filter_contract_status);
+        // contract_status foi removido de clients na auditoria 2026-05-25; lemos da view calculada
+        const { data: matching } = await adminClient
+          .from("client_financial_summary")
+          .select("client_id")
+          .eq("contract_status_calculated", notification.filter_contract_status);
+        const ids = (matching ?? []).map((row) => row.client_id).filter(Boolean) as string[];
+        // Sentinel UUID quando ids esta vazio garante 0 resultados (em vez de filtrar nada)
+        clientQuery = clientQuery.in(
+          "id",
+          ids.length > 0 ? ids : ["00000000-0000-0000-0000-000000000000"]
+        );
       }
       break;
     case "individual":

@@ -56,7 +56,7 @@ export default function AdminTeam() {
     }
 
     const { data, error } = await supabase
-      .from("team_members")
+      .from("team_members_with_role")
       .select("*")
       .neq("system_role", "cliente")
       .order("is_active", { ascending: false })
@@ -217,7 +217,6 @@ export default function AdminTeam() {
             email: member.email,
             phone: member.phone,
             role_title: member.role_title,
-            system_role: member.system_role,
             is_active: member.is_active,
             must_change_password: member.must_change_password,
             created_at: member.created_at,

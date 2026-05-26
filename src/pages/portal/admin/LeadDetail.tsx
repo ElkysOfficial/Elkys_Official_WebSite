@@ -54,14 +54,7 @@ import { formatPortalDate, formatPortalDateTime } from "@/lib/portal";
 type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
 type InteractionRow = Database["public"]["Tables"]["lead_interactions"]["Row"];
 
-type LeadStatus =
-  | "novo"
-  | "qualificado"
-  | "diagnostico"
-  | "proposta"
-  | "negociacao"
-  | "ganho"
-  | "perdido";
+type LeadStatus = "prospeccao" | "qualificado" | "proposta" | "ganho" | "perdido";
 type InteractionType = "ligacao" | "email" | "reuniao" | "whatsapp" | "nota";
 
 type StatusMeta = {
@@ -70,11 +63,9 @@ type StatusMeta = {
 };
 
 const STATUS_META: Record<LeadStatus, StatusMeta> = {
-  novo: { label: "Novo", tone: "secondary" },
+  prospeccao: { label: "Prospecção", tone: "secondary" },
   qualificado: { label: "Qualificado", tone: "accent" },
-  diagnostico: { label: "Diagnóstico", tone: "primary" },
   proposta: { label: "Proposta", tone: "primary" },
-  negociacao: { label: "Negociacao", tone: "warning" },
   ganho: { label: "Ganho", tone: "success" },
   perdido: { label: "Perdido", tone: "destructive" },
 };
@@ -307,19 +298,18 @@ export default function LeadDetail() {
 
       setDiagnosis(payload);
 
-      // Ao concluir, avancar status do lead para 'diagnostico' se ainda
-      // estiver em 'qualificado' (ou recem 'novo').
-      if (concluding && (lead.status === "qualificado" || lead.status === "novo")) {
+      // Ao concluir diagnostico em lead 'prospeccao', avancar para 'qualificado'.
+      if (concluding && lead.status === "prospeccao") {
         const { error: statusError } = await supabase
           .from("leads")
-          .update({ status: "diagnostico", updated_at: new Date().toISOString() })
+          .update({ status: "qualificado", updated_at: new Date().toISOString() })
           .eq("id", lead.id);
         if (statusError) {
           toast.error("Diagnóstico salvo, mas falha ao avançar status.", {
             description: statusError.message,
           });
         } else {
-          setLead({ ...lead, status: "diagnostico", diagnosis: payload as never });
+          setLead({ ...lead, status: "qualificado", diagnosis: payload as never });
         }
       } else {
         setLead({ ...lead, diagnosis: payload as never });
@@ -534,12 +524,12 @@ export default function LeadDetail() {
   }
 
   const status = lead.status as LeadStatus;
-  const statusMeta = STATUS_META[status] ?? STATUS_META.novo;
+  const statusMeta = STATUS_META[status] ?? STATUS_META.prospeccao;
 
   const canTransition = status !== "ganho" && status !== "perdido";
 
   // Build the quick status buttons: show statuses the lead can move to
-  const statusFlow: LeadStatus[] = ["qualificado", "proposta", "negociacao"];
+  const statusFlow: LeadStatus[] = ["qualificado", "proposta"];
   const availableStatuses = canTransition ? statusFlow.filter((s) => s !== status) : [];
 
   const paginatedInteractions = interactions.slice(

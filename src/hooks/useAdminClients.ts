@@ -21,9 +21,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
+// Auditoria 2026-05-25 (Onda 3.1): colunas snapshot removidas de clients.
+// monthly_value, project_total_value, contract_status, contract_type, contract_end
+// vem da view client_financial_summary (calculo real-time).
 const CLIENTS_SELECT =
-  "id, user_id, full_name, nome_fantasia, client_type, email, cpf, phone, is_active, client_since, monthly_value, project_total_value, contract_status, contract_end, client_origin, tags, created_at";
+  "id, user_id, full_name, nome_fantasia, client_type, email, cpf, phone, is_active, client_since, client_origin, tags, created_at";
 
 /**
  * Flags operacionais calculadas por cliente a partir de charges,
@@ -131,7 +135,7 @@ async function fetchClients() {
 
   return (clientsRes.data ?? []).map((client) => {
     const summary = summaryMap.get(client.id);
-    const contractEnd = summary?.end ?? client.contract_end;
+    const contractEnd = summary?.end ?? null;
     const contractExpiringSoon =
       typeof contractEnd === "string" && contractEnd >= todayStr && contractEnd <= expiringCutoff;
 
@@ -142,14 +146,16 @@ async function fetchClients() {
       contractExpiringSoon,
     };
 
+    // Auditoria 2026-05-25: clients nao tem mais os snapshots; valores vem da view calculada.
     return {
       ...client,
-      // PA11: sobrescreve snapshots legados com valores calculados.
-      monthly_value: summary ? summary.monthly : Number(client.monthly_value ?? 0),
-      contract_status: (summary?.status ?? client.contract_status) as typeof client.contract_status,
-      contract_type: (summary?.type ?? client.contract_type) as typeof client.contract_type,
-      contract_end: summary?.end ?? client.contract_end,
-      project_total_value: contractTotals.get(client.id) ?? Number(client.project_total_value),
+      monthly_value: summary?.monthly ?? 0,
+      contract_status: (summary?.status ?? null) as
+        | Database["public"]["Enums"]["contract_status"]
+        | null,
+      contract_type: (summary?.type ?? null) as Database["public"]["Enums"]["contract_type"] | null,
+      contract_end: summary?.end ?? null,
+      project_total_value: contractTotals.get(client.id) ?? 0,
       indicators,
     };
   });

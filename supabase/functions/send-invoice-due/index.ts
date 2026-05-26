@@ -76,7 +76,7 @@ serve(async (req) => {
     const { data: clients, error: clientsError } = await admin
       .from("clients")
       .select(
-        "id, full_name, email, email_financeiro, nome_fantasia, contract_status, client_type, gender, phone, whatsapp, responsavel_financeiro_phone"
+        "id, full_name, email, email_financeiro, nome_fantasia, client_type, gender, phone, whatsapp, responsavel_financeiro_phone"
       )
       .in("id", clientIds)
       .eq("is_active", true);
@@ -88,6 +88,15 @@ serve(async (req) => {
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
+
+    // Buscar contract_status calculado da view (clients.contract_status foi removido na auditoria 2026-05-25)
+    const { data: summaries } = await admin
+      .from("client_financial_summary")
+      .select("client_id, contract_status_calculated")
+      .in("client_id", clientIds);
+    const statusByClient = Object.fromEntries(
+      (summaries ?? []).map((s) => [s.client_id, s.contract_status_calculated])
+    );
 
     const clientMap = Object.fromEntries((clients ?? []).map((c) => [c.id, c]));
 
@@ -116,7 +125,7 @@ serve(async (req) => {
 
       const totalAmount = clientCharges.reduce((sum, c) => sum + Number(c.amount), 0);
       const amountFormatted = formatBRL(totalAmount);
-      const isInadimplente = client.contract_status === "inadimplente";
+      const isInadimplente = statusByClient[clientId] === "inadimplente";
       const chargeCount = clientCharges.length;
       const faturaLabel = chargeCount === 1 ? "fatura" : "faturas";
       const verbo = chargeCount === 1 ? "vence" : "vencem";

@@ -149,7 +149,7 @@ export default function AdminTeamEdit() {
     if (!id) return;
     void (async () => {
       const [memberRes, managersRes] = await Promise.all([
-        supabase.from("team_members").select("*").eq("id", id).single(),
+        supabase.from("team_members_with_role").select("*").eq("id", id).single(),
         // Pega todos para conseguir incluir o usuario logado como lider
         // mesmo se o team_members dele estiver inativo ou sem user_id.
         supabase
@@ -261,7 +261,6 @@ export default function AdminTeamEdit() {
           senioridade: data.senioridade || null,
           manager_id: data.manager_id || null,
           role_title: roleLabel,
-          system_role: data.system_role,
           is_active: data.status === "active",
         })
         .eq("id", member.id);

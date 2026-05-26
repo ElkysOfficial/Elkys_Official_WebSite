@@ -24,9 +24,20 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
   BURN_RATE_WINDOW_MONTHS,
+  computeAgingBuckets,
   computeBurnRate,
+  computeForecastProjection,
+  computeForecastRevenue,
+  computeMrrGrowth,
   computeOperationalMargin,
+  computePercentChange,
+  computePipelineSummary,
   computeRunway,
+  isProjectOverdue,
+  isProjectUpcomingDelivery,
+  UPCOMING_CHARGES_WINDOW_DAYS,
+  UPCOMING_DELIVERIES_WINDOW_DAYS,
+  UPCOMING_LIST_LIMIT,
 } from "@/lib/finance-metrics";
 import { formatBRL, getLocalDateIso, toCents } from "@/lib/masks";
 import { getClientDisplayName, isProjectOperationallyOpen, isTicketOpen } from "@/lib/portal";
@@ -277,14 +288,8 @@ function getMonthKeyFromDate(value?: string | null) {
   return createMonthKey(parsed.getFullYear(), parsed.getMonth());
 }
 
-function getPercentChange(current: number, previous: number) {
-  if (previous === 0) {
-    if (current === 0) return 0;
-    return null;
-  }
-
-  return ((current - previous) / Math.abs(previous)) * 100;
-}
+// Variacao percentual — fonte unica em src/lib/finance-metrics.ts (testada).
+const getPercentChange = computePercentChange;
 
 function getSignedCurrency(value: number) {
   const prefix = value > 0 ? "+" : value < 0 ? "-" : "";
@@ -753,6 +758,7 @@ async function fetchDashboard(): Promise<OverviewState> {
     contractsRes,
     ticketsRes,
     proposalsRes,
+    leadsRes,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -775,8 +781,9 @@ async function fetchDashboard(): Promise<OverviewState> {
     supabase.from("support_tickets").select("id, status, created_at"),
     supabase
       .from("proposals")
-      .select("id, total_amount, status")
+      .select("id, lead_id, total_amount, status")
       .in("status", ["enviada", "aprovada"]),
+    supabase.from("leads").select("id, status, estimated_value").in("status", ["proposta"]),
   ]);
 
   const hardError =
@@ -1034,13 +1041,8 @@ async function fetchDashboard(): Promise<OverviewState> {
 
   // Overdue projects: em_andamento with expected_delivery_date in the past
   const todayStr = getLocalDateIso(now);
-  const overdueProjects = projects.filter(
-    (p) =>
-      p.status === "em_andamento" &&
-      p.expected_delivery_date &&
-      p.expected_delivery_date < todayStr &&
-      !p.delivered_at
-  ).length;
+  // Atrasado — fonte unica em src/lib/finance-metrics.ts (testada).
+  const overdueProjects = projects.filter((p) => isProjectOverdue(p, todayStr)).length;
 
   // Completed this month
   const completedThisMonth = projects.filter((p) => {
@@ -1063,70 +1065,51 @@ async function fetchDashboard(): Promise<OverviewState> {
       ? Math.round(deliveryDurations.reduce((a, b) => a + b, 0) / deliveryDurations.length)
       : null;
 
-  // Aging analysis — only charges already past due (future pending are not yet receivable)
-  const agingCharges = charges.filter(
-    (c) =>
-      (c.status === "pendente" || c.status === "atrasado") &&
-      !c.is_historical &&
-      c.due_date &&
-      c.due_date <= todayStr
+  // Aging analysis — fonte unica em src/lib/finance-metrics.ts (testada).
+  const agingBuckets = computeAgingBuckets(charges, now, todayStr);
+
+  // Forecast — fonte unica em src/lib/finance-metrics.ts (testada).
+  const forecastRevenue = computeForecastRevenue(
+    charges.map((c) => ({
+      status: c.status,
+      is_historical: c.is_historical,
+      due_date: c.due_date,
+      amount: c.amount,
+    })),
+    contracts.map((c) => ({
+      id: c.id,
+      project_id: c.project_id,
+      total_amount: c.total_amount,
+      status: c.status,
+    })),
+    todayStr
   );
-  const agingBuckets: AgingBucket[] = [
-    { range: "0-30 dias", amount: 0, count: 0 },
-    { range: "30-60 dias", amount: 0, count: 0 },
-    { range: "60+ dias", amount: 0, count: 0 },
-  ];
-  agingCharges.forEach((c) => {
-    const dueDate = new Date(c.due_date + "T00:00:00");
-    const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-    const amtCents = toCents(c.amount);
-    if (daysOverdue <= 30) {
-      agingBuckets[0].amount += amtCents;
-      agingBuckets[0].count += 1;
-    } else if (daysOverdue <= 60) {
-      agingBuckets[1].amount += amtCents;
-      agingBuckets[1].count += 1;
-    } else {
-      agingBuckets[2].amount += amtCents;
-      agingBuckets[2].count += 1;
-    }
-  });
-  // Convert centavos back to reais
-  for (const bucket of agingBuckets) bucket.amount /= 100;
 
-  // Forecast: future agendada charges + approved proposals (expected future revenue)
-  const chargesForecast =
-    charges
-      .filter((c) => c.status === "agendada" && !c.is_historical && c.due_date > todayStr)
-      .reduce((sum, c) => sum + toCents(c.amount), 0) / 100;
-
-  type ProposalForecast = { id: string; total_amount: number; status: string };
-  const approvedProposalsForecast =
-    ((proposalsRes.data ?? []) as ProposalForecast[])
-      .filter((p) => p.status === "aprovada")
-      .reduce((sum, p) => sum + toCents(p.total_amount), 0) / 100;
-
-  const forecastRevenue = chargesForecast + approvedProposalsForecast;
-
-  // Pipeline: projects in negociacao (contracts) + active proposals (enviadas/aprovadas)
-  const negociacaoProjectIds = new Set(
-    projects.filter((p) => p.status === "negociacao").map((p) => p.id)
-  );
-  const pipelineContracts = contracts.filter(
-    (c) => negociacaoProjectIds.has(c.project_id) && c.status !== "cancelado"
-  );
-  const projectPipelineValue =
-    pipelineContracts.reduce((sum, c) => sum + toCents(c.total_amount), 0) / 100;
-
-  type ProposalPipeline = { id: string; total_amount: number; status: string };
+  // Pipeline (funil CRM — proposta em diante) — fonte unica em
+  // src/lib/finance-metrics.ts (testada). Veja docstring de
+  // computePipelineSummary para a regra completa.
+  type ProposalPipeline = {
+    id: string;
+    lead_id: string | null;
+    total_amount: number;
+    status: string;
+  };
+  type LeadPipeline = { id: string; status: string; estimated_value: number };
   const allProposals = (proposalsRes.data ?? []) as ProposalPipeline[];
-  // Only "enviada" proposals count toward pipeline — "aprovada" already have a project+contract
-  const pendingProposals = allProposals.filter((p) => p.status === "enviada");
-  const proposalPipelineValue =
-    pendingProposals.reduce((sum, p) => sum + toCents(p.total_amount), 0) / 100;
-
-  const pipelineValue = projectPipelineValue + proposalPipelineValue;
-  const pipelineCount = negociacaoProjectIds.size + pendingProposals.length;
+  const leadsPipeline = (leadsRes.data ?? []) as LeadPipeline[];
+  const pipelineSummary = computePipelineSummary(
+    allProposals,
+    leadsPipeline,
+    contracts.map((c) => ({
+      id: c.id,
+      project_id: c.project_id,
+      total_amount: c.total_amount,
+      status: c.status,
+    })),
+    projects.map((p) => ({ id: p.id, status: p.status }))
+  );
+  const pipelineValue = pipelineSummary.value;
+  const pipelineCount = pipelineSummary.count;
 
   // Burn rate e margem: lib central garante que Overview e Finance
   // produzam exatamente o mesmo numero para a mesma metrica.
@@ -1150,7 +1133,7 @@ async function fetchDashboard(): Promise<OverviewState> {
   // Upcoming charges (due in next 7 days)
   const clientNameMap = new Map(clients.map((c) => [c.id, getClientDisplayName(c)]));
   const sevenDaysFromNow = new Date();
-  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + UPCOMING_CHARGES_WINDOW_DAYS);
   const sevenDaysStr = getLocalDateIso(sevenDaysFromNow);
 
   const upcomingCharges: UpcomingCharge[] = charges
@@ -1178,22 +1161,15 @@ async function fetchDashboard(): Promise<OverviewState> {
       };
     })
     .sort((a, b) => a.daysUntilDue - b.daysUntilDue)
-    .slice(0, 5);
+    .slice(0, UPCOMING_LIST_LIMIT);
 
-  // Upcoming deliveries (projects due in next 14 days)
+  // Upcoming deliveries (projects due in next UPCOMING_DELIVERIES_WINDOW_DAYS days)
   const fourteenDaysFromNow = new Date();
-  fourteenDaysFromNow.setDate(fourteenDaysFromNow.getDate() + 14);
+  fourteenDaysFromNow.setDate(fourteenDaysFromNow.getDate() + UPCOMING_DELIVERIES_WINDOW_DAYS);
   const fourteenDaysStr = getLocalDateIso(fourteenDaysFromNow);
 
   const upcomingDeliveries = projects
-    .filter(
-      (p) =>
-        p.status === "em_andamento" &&
-        p.expected_delivery_date &&
-        p.expected_delivery_date >= todayStr &&
-        p.expected_delivery_date <= fourteenDaysStr &&
-        !p.delivered_at
-    )
+    .filter((p) => isProjectUpcomingDelivery(p, todayStr, fourteenDaysStr))
     .map((p) => {
       const dueDate = new Date(`${p.expected_delivery_date}T00:00:00`);
       return {
@@ -1208,70 +1184,38 @@ async function fetchDashboard(): Promise<OverviewState> {
       };
     })
     .sort((a, b) => a.daysUntil - b.daysUntil)
-    .slice(0, 5);
+    .slice(0, UPCOMING_LIST_LIMIT);
 
-  // Forecast computation — por mes calendario dentro do horizonte.
-  // Para cada mes futuro: receita prevista = max(agendada charges
-  // do mes, base contratual ativa no mes). Nao soma os dois (era
-  // double counting: charges agendada JA sao a materializacao
-  // das subscriptions). A base contratual cobre meses em que o
-  // gerador de charges ainda nao rodou.
-  const computeForecast = (months: number) => {
-    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-    let recurringCents = 0;
-    let scheduledCents = 0;
-    let totalCents = 0;
-
-    for (let i = 0; i < months; i += 1) {
-      const monthDate = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth() + i, 1);
-      const y = monthDate.getFullYear();
-      const m = monthDate.getMonth();
-      const monthKey = createMonthKey(y, m);
-      const monthStartIso = `${monthKey}-01`;
-      const lastDay = new Date(y, m + 1, 0).getDate();
-      const monthEndIso = `${monthKey}-${String(lastDay).padStart(2, "0")}`;
-
-      // Base contratual ativa naquele mes (respeita starts_on/ends_on)
-      const monthBaseCents = recurringSubscriptions
-        .filter((sub) => activeClientIds.has(sub.client_id))
-        .filter((sub) => {
-          if (sub.starts_on && sub.starts_on > monthEndIso) return false;
-          if (sub.ends_on && sub.ends_on < monthStartIso) return false;
-          return true;
-        })
-        .reduce((sum, sub) => sum + toCents(sub.amount), 0);
-
-      // Agendada charges devidas naquele mes
-      const monthScheduledCents = charges
-        .filter(
-          (c) =>
-            !c.is_historical &&
-            c.status === "agendada" &&
-            c.due_date >= monthStartIso &&
-            c.due_date <= monthEndIso
-        )
-        .reduce((sum, c) => sum + toCents(c.amount), 0);
-
-      recurringCents += monthBaseCents;
-      scheduledCents += monthScheduledCents;
-      // Union: usa o maior dos dois para cada mes, evitando double counting
-      totalCents += Math.max(monthBaseCents, monthScheduledCents);
-    }
-
-    return {
-      recurring: recurringCents / 100,
-      scheduled: scheduledCents / 100,
-      total: totalCents / 100,
-    };
-  };
+  // Projecao de receita N meses a frente — fonte unica em
+  // src/lib/finance-metrics.ts (testada). Mantem `recurringSubscriptions` e
+  // `charges` como fonte; veja docstring de computeForecastProjection.
+  const subscriptionsForProjection = recurringSubscriptions.map((sub) => ({
+    client_id: sub.client_id,
+    amount: sub.amount,
+    starts_on: sub.starts_on,
+    ends_on: sub.ends_on,
+  }));
+  const chargesForProjection = charges.map((c) => ({
+    status: c.status,
+    is_historical: c.is_historical,
+    due_date: c.due_date,
+    amount: c.amount,
+  }));
+  const runProjection = (months: number) =>
+    computeForecastProjection(
+      months,
+      subscriptionsForProjection,
+      chargesForProjection,
+      activeClientIds,
+      now
+    );
 
   const forecast = {
-    months1: computeForecast(1),
-    months3: computeForecast(3),
-    months6: computeForecast(6),
-    months9: computeForecast(9),
-    months12: computeForecast(12),
+    months1: runProjection(1),
+    months3: runProjection(3),
+    months6: runProjection(6),
+    months9: runProjection(9),
+    months12: runProjection(12),
   };
 
   return {
@@ -1344,8 +1288,10 @@ export default function AdminOverview() {
     queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null;
   const hasLoaded = !loading && !error;
 
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(6);
-  const [forecastPeriod, setForecastPeriod] = useState<PeriodOption>(6);
+  // Default = 1 (Mes atual / proximo mes) — abre na visao mais imediata,
+  // usuario expande pra janelas maiores se quiser comparativo.
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(1);
+  const [forecastPeriod, setForecastPeriod] = useState<PeriodOption>(1);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
 
   const handleQuickMarkPaid = useCallback(
@@ -1402,31 +1348,11 @@ export default function AdminOverview() {
   // Antes usava `totalMonths - selectedPeriod` (off-by-one) e retornava
   // apenas null, sem diferenciar N/A real de "Novo". Ver
   // memory/feedback_financial_metrics.md.
-  const periodMrrChange = useMemo(():
-    | { kind: "value"; value: number }
-    | { kind: "new" }
-    | { kind: "na" } => {
-    const totalMonths = summary.monthlySeries.length;
-    if (totalMonths === 0) return { kind: "na" };
-    const endIdx = totalMonths - 1;
-    const startIdx = endIdx - selectedPeriod;
-    if (startIdx < 0) return { kind: "na" };
-    const startPoint = summary.monthlySeries[startIdx];
-    const endPoint = summary.monthlySeries[endIdx];
-    if (!startPoint || !endPoint) return { kind: "na" };
-    // Se o mes-base precede o primeiro mes com dado consolidado real
-    // (primeiro due_date registrado), retorna N/A. Nao extrapola o
-    // crescimento apenas com fallback contratual de subscription.
-    if (summary.earliestDataMonth && startPoint.key < summary.earliestDataMonth) {
-      return { kind: "na" };
-    }
-    const startMrr = startPoint.recurringRevenue;
-    const endMrr = endPoint.recurringRevenue;
-    if (startMrr === 0) {
-      return endMrr === 0 ? { kind: "value", value: 0 } : { kind: "new" };
-    }
-    return { kind: "value", value: ((endMrr - startMrr) / startMrr) * 100 };
-  }, [selectedPeriod, summary.monthlySeries, summary.earliestDataMonth]);
+  // Crescimento do MRR no periodo — fonte unica em src/lib/finance-metrics.ts (testada).
+  const periodMrrChange = useMemo(
+    () => computeMrrGrowth(summary.monthlySeries, selectedPeriod, summary.earliestDataMonth),
+    [selectedPeriod, summary.monthlySeries, summary.earliestDataMonth]
+  );
 
   // Label dinamico usado tanto no headline quanto no card de MRR.
   const periodLabel = useMemo(
@@ -1522,7 +1448,7 @@ export default function AdminOverview() {
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {option}M
+                      {option === 1 ? "Mês atual" : `${option}M`}
                     </button>
                   ))}
                 </div>
@@ -1535,7 +1461,11 @@ export default function AdminOverview() {
                   tone={periodNet >= 0 ? "success" : "destructive"}
                 />
                 <SurfaceStat
-                  label={`Crescimento do MRR (${selectedPeriod}M)`}
+                  label={
+                    selectedPeriod === 1
+                      ? "Crescimento do MRR (Mês atual)"
+                      : `Crescimento do MRR (${selectedPeriod}M)`
+                  }
                   value={
                     periodMrrChange.kind === "na"
                       ? "N/A"
@@ -1815,7 +1745,7 @@ export default function AdminOverview() {
                               : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          {m}M
+                          {m === 1 ? "Próximo mês" : `${m}M`}
                         </button>
                       ))}
                     </div>

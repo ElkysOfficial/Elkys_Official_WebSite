@@ -23,6 +23,13 @@ import { AlertDialog, Button, Card, CardContent, Input, buttonVariants, cn } fro
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { exportCSV, exportPDF, type ExportColumn } from "@/lib/export";
+import { isProjectOverdue, isProjectUpcomingDelivery } from "@/lib/finance-metrics";
+
+/**
+ * Janela do card "Entregas 7 dias" — tighter que Overview (14d) porque
+ * esta tela e foco operacional do PO; quer enxergar o imediato.
+ */
+const PROJECTS_LIST_UPCOMING_DAYS = 7;
 import {
   PROJECT_STATUS_META,
   formatPortalDate,
@@ -514,25 +521,21 @@ export default function AdminProjects() {
 
   const { totalProjects, activeProjects, pausedProjects, overdueProjects, upcomingDeliveries } =
     useMemo(() => {
+      // Atrasado/upcoming usam definicao centralizada em finance-metrics.ts:
+      // status='em_andamento' + nao entregue. Antes Projects.tsx incluia
+      // 'negociacao' e 'pausado' como atrasados, divergindo de Overview/Finance.
       const today = new Date().toISOString().slice(0, 10);
-      const in7Days = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-      const isOperational = (p: PortalProject) =>
-        p.status !== "concluido" && p.status !== "cancelado";
+      const windowEnd = new Date(Date.now() + PROJECTS_LIST_UPCOMING_DAYS * 24 * 3600 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
       return {
         totalProjects: projects.length,
         activeProjects: projects.filter(isProjectOperationallyOpen).length,
         pausedProjects: projects.filter((project) => project.status === "pausado").length,
-        overdueProjects: projects.filter(
-          (p) => isOperational(p) && p.expected_delivery_date && p.expected_delivery_date < today
-        ).length,
-        upcomingDeliveries: projects.filter(
-          (p) =>
-            isOperational(p) &&
-            p.expected_delivery_date &&
-            p.expected_delivery_date >= today &&
-            p.expected_delivery_date <= in7Days
-        ).length,
+        overdueProjects: projects.filter((p) => isProjectOverdue(p, today)).length,
+        upcomingDeliveries: projects.filter((p) => isProjectUpcomingDelivery(p, today, windowEnd))
+          .length,
       };
     }, [projects]);
 

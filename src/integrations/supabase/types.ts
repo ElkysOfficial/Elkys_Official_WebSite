@@ -6,31 +6,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4";
   };
-  graphql_public: {
-    Tables: {
-      [_ in never]: never;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json;
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-        };
-        Returns: Json;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
   public: {
     Tables: {
       admin_notifications: {
@@ -43,7 +18,7 @@ export type Database = {
           entity_type: string | null;
           id: string;
           read_by: string[];
-          severity: string;
+          severity: Database["public"]["Enums"]["admin_notification_severity"];
           target_roles: Database["public"]["Enums"]["app_role"][];
           title: string;
           type: string;
@@ -57,7 +32,7 @@ export type Database = {
           entity_type?: string | null;
           id?: string;
           read_by?: string[];
-          severity?: string;
+          severity?: Database["public"]["Enums"]["admin_notification_severity"];
           target_roles?: Database["public"]["Enums"]["app_role"][];
           title: string;
           type: string;
@@ -71,7 +46,7 @@ export type Database = {
           entity_type?: string | null;
           id?: string;
           read_by?: string[];
-          severity?: string;
+          severity?: Database["public"]["Enums"]["admin_notification_severity"];
           target_roles?: Database["public"]["Enums"]["app_role"][];
           title?: string;
           type?: string;
@@ -123,9 +98,9 @@ export type Database = {
           rule_id: string | null;
           sent_at: string;
           sent_date: string | null;
-          status: string;
+          status: Database["public"]["Enums"]["billing_action_log_status"];
           template_id: string | null;
-          triggered_by: string;
+          triggered_by: Database["public"]["Enums"]["billing_action_trigger"];
         };
         Insert: {
           action_type: string;
@@ -135,9 +110,9 @@ export type Database = {
           rule_id?: string | null;
           sent_at?: string;
           sent_date?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["billing_action_log_status"];
           template_id?: string | null;
-          triggered_by?: string;
+          triggered_by?: Database["public"]["Enums"]["billing_action_trigger"];
         };
         Update: {
           action_type?: string;
@@ -147,9 +122,9 @@ export type Database = {
           rule_id?: string | null;
           sent_at?: string;
           sent_date?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["billing_action_log_status"];
           template_id?: string | null;
-          triggered_by?: string;
+          triggered_by?: Database["public"]["Enums"]["billing_action_trigger"];
         };
         Relationships: [
           {
@@ -177,7 +152,7 @@ export type Database = {
       };
       billing_rules: {
         Row: {
-          action_type: string;
+          action_type: Database["public"]["Enums"]["billing_action_type"];
           created_at: string;
           id: string;
           is_active: boolean;
@@ -188,7 +163,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
-          action_type: string;
+          action_type: Database["public"]["Enums"]["billing_action_type"];
           created_at?: string;
           id?: string;
           is_active?: boolean;
@@ -199,7 +174,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
-          action_type?: string;
+          action_type?: Database["public"]["Enums"]["billing_action_type"];
           created_at?: string;
           id?: string;
           is_active?: boolean;
@@ -227,7 +202,7 @@ export type Database = {
           is_active: boolean;
           name: string;
           subject: string;
-          type: string;
+          type: Database["public"]["Enums"]["billing_template_type"];
           updated_at: string;
         };
         Insert: {
@@ -237,7 +212,7 @@ export type Database = {
           is_active?: boolean;
           name: string;
           subject: string;
-          type?: string;
+          type?: Database["public"]["Enums"]["billing_template_type"];
           updated_at?: string;
         };
         Update: {
@@ -247,7 +222,7 @@ export type Database = {
           is_active?: boolean;
           name?: string;
           subject?: string;
-          type?: string;
+          type?: Database["public"]["Enums"]["billing_template_type"];
           updated_at?: string;
         };
         Relationships: [];
@@ -264,7 +239,7 @@ export type Database = {
           installment_id: string | null;
           is_blocking: boolean;
           is_historical: boolean;
-          origin_type: string;
+          origin_type: Database["public"]["Enums"]["charge_origin"];
           paid_at: string | null;
           payment_link: string | null;
           payment_reference: string | null;
@@ -284,7 +259,7 @@ export type Database = {
           installment_id?: string | null;
           is_blocking?: boolean;
           is_historical?: boolean;
-          origin_type: string;
+          origin_type: Database["public"]["Enums"]["charge_origin"];
           paid_at?: string | null;
           payment_link?: string | null;
           payment_reference?: string | null;
@@ -304,7 +279,7 @@ export type Database = {
           installment_id?: string | null;
           is_blocking?: boolean;
           is_historical?: boolean;
-          origin_type?: string;
+          origin_type?: Database["public"]["Enums"]["charge_origin"];
           paid_at?: string | null;
           payment_link?: string | null;
           payment_reference?: string | null;
@@ -483,10 +458,6 @@ export type Database = {
           cnpj: string | null;
           complemento: string | null;
           contato_secundario: string | null;
-          contract_end: string | null;
-          contract_start: string | null;
-          contract_status: Database["public"]["Enums"]["contract_status"] | null;
-          contract_type: Database["public"]["Enums"]["contract_type"] | null;
           country: string;
           cpf: string | null;
           created_at: string;
@@ -501,24 +472,24 @@ export type Database = {
           is_active: boolean;
           limite_credito: number | null;
           logradouro: string | null;
-          monthly_value: number;
           must_change_password: boolean;
           nome_fantasia: string | null;
           notes_internal: string | null;
           numero: string | null;
           owner_id: string | null;
-          payment_due_day: number | null;
           phone: string | null;
-          project_total_value: number;
+          privacy_accepted_at: string | null;
+          privacy_version: string | null;
           razao_social: string | null;
           regime_tributario: Database["public"]["Enums"]["regime_tributario_type"] | null;
           responsavel_financeiro: string | null;
           responsavel_financeiro_phone: string | null;
           rg: string | null;
-          scope_summary: string | null;
           sla_hours: number | null;
           state: string | null;
           tags: string[];
+          terms_accepted_at: string | null;
+          terms_version: string | null;
           updated_at: string;
           user_id: string | null;
           whatsapp: string | null;
@@ -539,10 +510,6 @@ export type Database = {
           cnpj?: string | null;
           complemento?: string | null;
           contato_secundario?: string | null;
-          contract_end?: string | null;
-          contract_start?: string | null;
-          contract_status?: Database["public"]["Enums"]["contract_status"] | null;
-          contract_type?: Database["public"]["Enums"]["contract_type"] | null;
           country?: string;
           cpf?: string | null;
           created_at?: string;
@@ -557,24 +524,24 @@ export type Database = {
           is_active?: boolean;
           limite_credito?: number | null;
           logradouro?: string | null;
-          monthly_value?: number;
           must_change_password?: boolean;
           nome_fantasia?: string | null;
           notes_internal?: string | null;
           numero?: string | null;
           owner_id?: string | null;
-          payment_due_day?: number | null;
           phone?: string | null;
-          project_total_value?: number;
+          privacy_accepted_at?: string | null;
+          privacy_version?: string | null;
           razao_social?: string | null;
           regime_tributario?: Database["public"]["Enums"]["regime_tributario_type"] | null;
           responsavel_financeiro?: string | null;
           responsavel_financeiro_phone?: string | null;
           rg?: string | null;
-          scope_summary?: string | null;
           sla_hours?: number | null;
           state?: string | null;
           tags?: string[];
+          terms_accepted_at?: string | null;
+          terms_version?: string | null;
           updated_at?: string;
           user_id?: string | null;
           whatsapp?: string | null;
@@ -595,10 +562,6 @@ export type Database = {
           cnpj?: string | null;
           complemento?: string | null;
           contato_secundario?: string | null;
-          contract_end?: string | null;
-          contract_start?: string | null;
-          contract_status?: Database["public"]["Enums"]["contract_status"] | null;
-          contract_type?: Database["public"]["Enums"]["contract_type"] | null;
           country?: string;
           cpf?: string | null;
           created_at?: string;
@@ -613,24 +576,24 @@ export type Database = {
           is_active?: boolean;
           limite_credito?: number | null;
           logradouro?: string | null;
-          monthly_value?: number;
           must_change_password?: boolean;
           nome_fantasia?: string | null;
           notes_internal?: string | null;
           numero?: string | null;
           owner_id?: string | null;
-          payment_due_day?: number | null;
           phone?: string | null;
-          project_total_value?: number;
+          privacy_accepted_at?: string | null;
+          privacy_version?: string | null;
           razao_social?: string | null;
           regime_tributario?: Database["public"]["Enums"]["regime_tributario_type"] | null;
           responsavel_financeiro?: string | null;
           responsavel_financeiro_phone?: string | null;
           rg?: string | null;
-          scope_summary?: string | null;
           sla_hours?: number | null;
           state?: string | null;
           tags?: string[];
+          terms_accepted_at?: string | null;
+          terms_version?: string | null;
           updated_at?: string;
           user_id?: string | null;
           whatsapp?: string | null;
@@ -641,40 +604,47 @@ export type Database = {
         Row: {
           client_id: string | null;
           created_at: string;
-          email_status: string;
+          email_status: Database["public"]["Enums"]["message_delivery_status"];
           entity_id: string | null;
           entity_type: string | null;
           id: string;
           kind: string;
           recipient_email: string | null;
           recipient_phone: string | null;
-          whatsapp_status: string | null;
+          whatsapp_status: Database["public"]["Enums"]["message_delivery_status"] | null;
         };
         Insert: {
           client_id?: string | null;
           created_at?: string;
-          email_status?: string;
+          email_status?: Database["public"]["Enums"]["message_delivery_status"];
           entity_id?: string | null;
           entity_type?: string | null;
           id?: string;
           kind: string;
           recipient_email?: string | null;
           recipient_phone?: string | null;
-          whatsapp_status?: string | null;
+          whatsapp_status?: Database["public"]["Enums"]["message_delivery_status"] | null;
         };
         Update: {
           client_id?: string | null;
           created_at?: string;
-          email_status?: string;
+          email_status?: Database["public"]["Enums"]["message_delivery_status"];
           entity_id?: string | null;
           entity_type?: string | null;
           id?: string;
           kind?: string;
           recipient_email?: string | null;
           recipient_phone?: string | null;
-          whatsapp_status?: string | null;
+          whatsapp_status?: Database["public"]["Enums"]["message_delivery_status"] | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "communications_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "client_financial_summary";
+            referencedColumns: ["client_id"];
+          },
           {
             foreignKeyName: "communications_client_id_fkey";
             columns: ["client_id"];
@@ -687,7 +657,8 @@ export type Database = {
       documents: {
         Row: {
           archived_at: string | null;
-          client_id: string;
+          audience: string | null;
+          client_id: string | null;
           contract_id: string | null;
           created_at: string;
           description: string | null;
@@ -703,7 +674,8 @@ export type Database = {
         };
         Insert: {
           archived_at?: string | null;
-          client_id: string;
+          audience?: string | null;
+          client_id?: string | null;
           contract_id?: string | null;
           created_at?: string;
           description?: string | null;
@@ -719,7 +691,8 @@ export type Database = {
         };
         Update: {
           archived_at?: string | null;
-          client_id?: string;
+          audience?: string | null;
+          client_id?: string | null;
           contract_id?: string | null;
           created_at?: string;
           description?: string | null;
@@ -767,7 +740,7 @@ export type Database = {
       expenses: {
         Row: {
           amount: number;
-          category: string;
+          category: Database["public"]["Enums"]["expense_category"];
           client_id: string | null;
           created_at: string;
           created_by: string | null;
@@ -780,7 +753,7 @@ export type Database = {
         };
         Insert: {
           amount: number;
-          category?: string;
+          category?: Database["public"]["Enums"]["expense_category"];
           client_id?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -793,7 +766,7 @@ export type Database = {
         };
         Update: {
           amount?: number;
-          category?: string;
+          category?: Database["public"]["Enums"]["expense_category"];
           client_id?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -836,7 +809,7 @@ export type Database = {
           notes: string | null;
           period_end: string;
           period_start: string;
-          period_type: string;
+          period_type: Database["public"]["Enums"]["financial_goal_period"];
           target_amount: number;
           updated_at: string;
         };
@@ -847,7 +820,7 @@ export type Database = {
           notes?: string | null;
           period_end: string;
           period_start: string;
-          period_type: string;
+          period_type: Database["public"]["Enums"]["financial_goal_period"];
           target_amount: number;
           updated_at?: string;
         };
@@ -858,42 +831,9 @@ export type Database = {
           notes?: string | null;
           period_end?: string;
           period_start?: string;
-          period_type?: string;
+          period_type?: Database["public"]["Enums"]["financial_goal_period"];
           target_amount?: number;
           updated_at?: string;
-        };
-        Relationships: [];
-      };
-      internal_team_documents: {
-        Row: {
-          audience: string;
-          created_at: string;
-          created_by: string | null;
-          id: string;
-          label: string;
-          type_label: string;
-          updated_at: string;
-          url: string;
-        };
-        Insert: {
-          audience: string;
-          created_at?: string;
-          created_by?: string | null;
-          id?: string;
-          label: string;
-          type_label: string;
-          updated_at?: string;
-          url: string;
-        };
-        Update: {
-          audience?: string;
-          created_at?: string;
-          created_by?: string | null;
-          id?: string;
-          label?: string;
-          type_label?: string;
-          updated_at?: string;
-          url?: string;
         };
         Relationships: [];
       };
@@ -904,7 +844,7 @@ export type Database = {
           id: string;
           lead_id: string;
           notes: string;
-          type: string;
+          type: Database["public"]["Enums"]["lead_interaction_type"];
         };
         Insert: {
           created_at?: string;
@@ -912,7 +852,7 @@ export type Database = {
           id?: string;
           lead_id: string;
           notes: string;
-          type: string;
+          type: Database["public"]["Enums"]["lead_interaction_type"];
         };
         Update: {
           created_at?: string;
@@ -920,7 +860,7 @@ export type Database = {
           id?: string;
           lead_id?: string;
           notes?: string;
-          type?: string;
+          type?: Database["public"]["Enums"]["lead_interaction_type"];
         };
         Relationships: [
           {
@@ -948,8 +888,8 @@ export type Database = {
           notes: string | null;
           phone: string | null;
           probability: number | null;
-          source: string;
-          status: string;
+          source: Database["public"]["Enums"]["lead_source"];
+          status: Database["public"]["Enums"]["lead_status"];
           updated_at: string;
         };
         Insert: {
@@ -967,8 +907,8 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           probability?: number | null;
-          source?: string;
-          status?: string;
+          source?: Database["public"]["Enums"]["lead_source"];
+          status?: Database["public"]["Enums"]["lead_status"];
           updated_at?: string;
         };
         Update: {
@@ -986,8 +926,8 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           probability?: number | null;
-          source?: string;
-          status?: string;
+          source?: Database["public"]["Enums"]["lead_source"];
+          status?: Database["public"]["Enums"]["lead_status"];
           updated_at?: string;
         };
         Relationships: [
@@ -1007,6 +947,54 @@ export type Database = {
           },
         ];
       };
+      legal_acceptance_log: {
+        Row: {
+          accepted_at: string;
+          client_id: string | null;
+          document_type: string;
+          document_version: string;
+          id: string;
+          ip_address: unknown;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          accepted_at?: string;
+          client_id?: string | null;
+          document_type: string;
+          document_version: string;
+          id?: string;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          accepted_at?: string;
+          client_id?: string | null;
+          document_type?: string;
+          document_version?: string;
+          id?: string;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "legal_acceptance_log_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "client_financial_summary";
+            referencedColumns: ["client_id"];
+          },
+          {
+            foreignKeyName: "legal_acceptance_log_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       marketing_calendar_events: {
         Row: {
           all_day: boolean;
@@ -1016,11 +1004,11 @@ export type Database = {
           created_by: string | null;
           description: string | null;
           ends_at: string;
-          event_type: string;
+          event_type: Database["public"]["Enums"]["marketing_event_type"];
           id: string;
           project_id: string | null;
           starts_at: string;
-          status: string;
+          status: Database["public"]["Enums"]["marketing_event_status"];
           title: string;
           updated_at: string;
         };
@@ -1032,11 +1020,11 @@ export type Database = {
           created_by?: string | null;
           description?: string | null;
           ends_at: string;
-          event_type?: string;
+          event_type?: Database["public"]["Enums"]["marketing_event_type"];
           id?: string;
           project_id?: string | null;
           starts_at: string;
-          status?: string;
+          status?: Database["public"]["Enums"]["marketing_event_status"];
           title: string;
           updated_at?: string;
         };
@@ -1048,11 +1036,11 @@ export type Database = {
           created_by?: string | null;
           description?: string | null;
           ends_at?: string;
-          event_type?: string;
+          event_type?: Database["public"]["Enums"]["marketing_event_type"];
           id?: string;
           project_id?: string | null;
           starts_at?: string;
-          status?: string;
+          status?: Database["public"]["Enums"]["marketing_event_status"];
           title?: string;
           updated_at?: string;
         };
@@ -1143,7 +1131,7 @@ export type Database = {
           error_count: number | null;
           filter_client_ids: string[] | null;
           filter_contract_status: string | null;
-          filter_mode: string;
+          filter_mode: Database["public"]["Enums"]["notification_filter_mode"];
           filter_tags: string[] | null;
           id: string;
           recipient_count: number | null;
@@ -1161,7 +1149,7 @@ export type Database = {
           error_count?: number | null;
           filter_client_ids?: string[] | null;
           filter_contract_status?: string | null;
-          filter_mode?: string;
+          filter_mode?: Database["public"]["Enums"]["notification_filter_mode"];
           filter_tags?: string[] | null;
           id?: string;
           recipient_count?: number | null;
@@ -1179,7 +1167,7 @@ export type Database = {
           error_count?: number | null;
           filter_client_ids?: string[] | null;
           filter_contract_status?: string | null;
-          filter_mode?: string;
+          filter_mode?: Database["public"]["Enums"]["notification_filter_mode"];
           filter_tags?: string[] | null;
           id?: string;
           recipient_count?: number | null;
@@ -1310,6 +1298,7 @@ export type Database = {
           project_id: string | null;
           scope_summary: string | null;
           signed_at: string | null;
+          source_proposal_id: string | null;
           starts_at: string | null;
           status: Database["public"]["Enums"]["contract_record_status"];
           total_amount: number;
@@ -1329,6 +1318,7 @@ export type Database = {
           project_id?: string | null;
           scope_summary?: string | null;
           signed_at?: string | null;
+          source_proposal_id?: string | null;
           starts_at?: string | null;
           status?: Database["public"]["Enums"]["contract_record_status"];
           total_amount?: number;
@@ -1348,6 +1338,7 @@ export type Database = {
           project_id?: string | null;
           scope_summary?: string | null;
           signed_at?: string | null;
+          source_proposal_id?: string | null;
           starts_at?: string | null;
           status?: Database["public"]["Enums"]["contract_record_status"];
           total_amount?: number;
@@ -1374,6 +1365,13 @@ export type Database = {
             columns: ["project_id"];
             isOneToOne: false;
             referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_contracts_source_proposal_id_fkey";
+            columns: ["source_proposal_id"];
+            isOneToOne: false;
+            referencedRelation: "proposals";
             referencedColumns: ["id"];
           },
         ];
@@ -1630,7 +1628,7 @@ export type Database = {
           round_no: number;
           scope_summary: string | null;
           started_at: string;
-          status: string;
+          status: Database["public"]["Enums"]["validation_round_status"];
           updated_at: string;
           validated_by_client: string | null;
           validated_by_internal: string | null;
@@ -1648,7 +1646,7 @@ export type Database = {
           round_no: number;
           scope_summary?: string | null;
           started_at?: string;
-          status?: string;
+          status?: Database["public"]["Enums"]["validation_round_status"];
           updated_at?: string;
           validated_by_client?: string | null;
           validated_by_internal?: string | null;
@@ -1666,7 +1664,7 @@ export type Database = {
           round_no?: number;
           scope_summary?: string | null;
           started_at?: string;
-          status?: string;
+          status?: Database["public"]["Enums"]["validation_round_status"];
           updated_at?: string;
           validated_by_client?: string | null;
           validated_by_internal?: string | null;
@@ -1705,7 +1703,7 @@ export type Database = {
           client_id: string;
           client_visible_summary: string | null;
           created_at: string;
-          current_stage: string;
+          current_stage: Database["public"]["Enums"]["project_stage"];
           delivered_at: string | null;
           description: string | null;
           expected_delivery_date: string | null;
@@ -1735,7 +1733,7 @@ export type Database = {
           client_id: string;
           client_visible_summary?: string | null;
           created_at?: string;
-          current_stage?: string;
+          current_stage?: Database["public"]["Enums"]["project_stage"];
           delivered_at?: string | null;
           description?: string | null;
           expected_delivery_date?: string | null;
@@ -1765,7 +1763,7 @@ export type Database = {
           client_id?: string;
           client_visible_summary?: string | null;
           created_at?: string;
-          current_stage?: string;
+          current_stage?: Database["public"]["Enums"]["project_stage"];
           delivered_at?: string | null;
           description?: string | null;
           expected_delivery_date?: string | null;
@@ -1828,7 +1826,7 @@ export type Database = {
           scope_summary: string | null;
           sent_at: string | null;
           solution_type: string | null;
-          status: string;
+          status: Database["public"]["Enums"]["proposal_status"];
           technical_document_url: string | null;
           title: string;
           total_amount: number;
@@ -1853,7 +1851,7 @@ export type Database = {
           scope_summary?: string | null;
           sent_at?: string | null;
           solution_type?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["proposal_status"];
           technical_document_url?: string | null;
           title: string;
           total_amount?: number;
@@ -1878,7 +1876,7 @@ export type Database = {
           scope_summary?: string | null;
           sent_at?: string | null;
           solution_type?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["proposal_status"];
           technical_document_url?: string | null;
           title?: string;
           total_amount?: number;
@@ -1913,61 +1911,61 @@ export type Database = {
       support_tickets: {
         Row: {
           body: string;
-          category: string;
+          category: Database["public"]["Enums"]["support_ticket_category"];
           client_id: string;
           created_at: string;
           first_response_at: string | null;
           id: string;
           in_warranty: boolean;
           internal_notes: string | null;
-          priority: string;
+          priority: Database["public"]["Enums"]["support_ticket_priority"];
           project_id: string | null;
           rated_at: string | null;
           rating: number | null;
           rating_feedback: string | null;
           resolved_at: string | null;
           sla_deadline: string | null;
-          status: string;
+          status: Database["public"]["Enums"]["support_ticket_status"];
           subject: string;
           updated_at: string;
         };
         Insert: {
           body: string;
-          category?: string;
+          category?: Database["public"]["Enums"]["support_ticket_category"];
           client_id: string;
           created_at?: string;
           first_response_at?: string | null;
           id?: string;
           in_warranty?: boolean;
           internal_notes?: string | null;
-          priority?: string;
+          priority?: Database["public"]["Enums"]["support_ticket_priority"];
           project_id?: string | null;
           rated_at?: string | null;
           rating?: number | null;
           rating_feedback?: string | null;
           resolved_at?: string | null;
           sla_deadline?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["support_ticket_status"];
           subject: string;
           updated_at?: string;
         };
         Update: {
           body?: string;
-          category?: string;
+          category?: Database["public"]["Enums"]["support_ticket_category"];
           client_id?: string;
           created_at?: string;
           first_response_at?: string | null;
           id?: string;
           in_warranty?: boolean;
           internal_notes?: string | null;
-          priority?: string;
+          priority?: Database["public"]["Enums"]["support_ticket_priority"];
           project_id?: string | null;
           rated_at?: string | null;
           rating?: number | null;
           rating_feedback?: string | null;
           resolved_at?: string | null;
           sla_deadline?: string | null;
-          status?: string;
+          status?: Database["public"]["Enums"]["support_ticket_status"];
           subject?: string;
           updated_at?: string;
         };
@@ -2011,7 +2009,6 @@ export type Database = {
           phone: string | null;
           role_title: string;
           senioridade: Database["public"]["Enums"]["senioridade_type"] | null;
-          system_role: Database["public"]["Enums"]["app_role"] | null;
           updated_at: string;
           user_id: string | null;
         };
@@ -2030,7 +2027,6 @@ export type Database = {
           phone?: string | null;
           role_title?: string;
           senioridade?: Database["public"]["Enums"]["senioridade_type"] | null;
-          system_role?: Database["public"]["Enums"]["app_role"] | null;
           updated_at?: string;
           user_id?: string | null;
         };
@@ -2049,7 +2045,6 @@ export type Database = {
           phone?: string | null;
           role_title?: string;
           senioridade?: Database["public"]["Enums"]["senioridade_type"] | null;
-          system_role?: Database["public"]["Enums"]["app_role"] | null;
           updated_at?: string;
           user_id?: string | null;
         };
@@ -2176,7 +2171,7 @@ export type Database = {
           body: string;
           created_at: string;
           id: string;
-          sender_role: string;
+          sender_role: Database["public"]["Enums"]["ticket_message_sender"];
           ticket_id: string;
         };
         Insert: {
@@ -2184,7 +2179,7 @@ export type Database = {
           body: string;
           created_at?: string;
           id?: string;
-          sender_role: string;
+          sender_role: Database["public"]["Enums"]["ticket_message_sender"];
           ticket_id: string;
         };
         Update: {
@@ -2192,7 +2187,7 @@ export type Database = {
           body?: string;
           created_at?: string;
           id?: string;
-          sender_role?: string;
+          sender_role?: Database["public"]["Enums"]["ticket_message_sender"];
           ticket_id?: string;
         };
         Relationships: [
@@ -2216,7 +2211,7 @@ export type Database = {
           occurred_at: string;
           project_id: string | null;
           source_id: string | null;
-          source_table: string | null;
+          source_table: Database["public"]["Enums"]["timeline_source_table"] | null;
           summary: string;
           title: string;
           visibility: Database["public"]["Enums"]["document_visibility"];
@@ -2231,7 +2226,7 @@ export type Database = {
           occurred_at?: string;
           project_id?: string | null;
           source_id?: string | null;
-          source_table?: string | null;
+          source_table?: Database["public"]["Enums"]["timeline_source_table"] | null;
           summary: string;
           title: string;
           visibility?: Database["public"]["Enums"]["document_visibility"];
@@ -2246,7 +2241,7 @@ export type Database = {
           occurred_at?: string;
           project_id?: string | null;
           source_id?: string | null;
-          source_table?: string | null;
+          source_table?: Database["public"]["Enums"]["timeline_source_table"] | null;
           summary?: string;
           title?: string;
           visibility?: Database["public"]["Enums"]["document_visibility"];
@@ -2277,7 +2272,7 @@ export type Database = {
       };
       tracked_links: {
         Row: {
-          channel: string;
+          channel: Database["public"]["Enums"]["message_channel"];
           communication_id: string;
           created_at: string;
           id: string;
@@ -2285,7 +2280,7 @@ export type Database = {
           target_url: string;
         };
         Insert: {
-          channel?: string;
+          channel?: Database["public"]["Enums"]["message_channel"];
           communication_id: string;
           created_at?: string;
           id?: string;
@@ -2293,7 +2288,7 @@ export type Database = {
           target_url: string;
         };
         Update: {
-          channel?: string;
+          channel?: Database["public"]["Enums"]["message_channel"];
           communication_id?: string;
           created_at?: string;
           id?: string;
@@ -2312,32 +2307,32 @@ export type Database = {
       };
       tracking_events: {
         Row: {
-          channel: string;
+          channel: Database["public"]["Enums"]["message_channel"];
           communication_id: string;
           created_at: string;
-          event_type: string;
+          event_type: Database["public"]["Enums"]["tracking_event_type"];
           id: string;
-          ip: string | null;
+          ip: unknown;
           tracked_link_id: string | null;
           user_agent: string | null;
         };
         Insert: {
-          channel?: string;
+          channel?: Database["public"]["Enums"]["message_channel"];
           communication_id: string;
           created_at?: string;
-          event_type: string;
+          event_type: Database["public"]["Enums"]["tracking_event_type"];
           id?: string;
-          ip?: string | null;
+          ip?: unknown;
           tracked_link_id?: string | null;
           user_agent?: string | null;
         };
         Update: {
-          channel?: string;
+          channel?: Database["public"]["Enums"]["message_channel"];
           communication_id?: string;
           created_at?: string;
-          event_type?: string;
+          event_type?: Database["public"]["Enums"]["tracking_event_type"];
           id?: string;
-          ip?: string | null;
+          ip?: unknown;
           tracked_link_id?: string | null;
           user_agent?: string | null;
         };
@@ -2460,6 +2455,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      team_members_with_role: {
+        Row: {
+          birth_date: string | null;
+          cpf: string | null;
+          created_at: string | null;
+          email: string | null;
+          full_name: string | null;
+          gender: Database["public"]["Enums"]["gender_type"] | null;
+          id: string | null;
+          is_active: boolean | null;
+          last_login_at: string | null;
+          manager_id: string | null;
+          must_change_password: boolean | null;
+          phone: string | null;
+          role_title: string | null;
+          senioridade: Database["public"]["Enums"]["senioridade_type"] | null;
+          system_role: Database["public"]["Enums"]["app_role"] | null;
+          updated_at: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          birth_date?: string | null;
+          cpf?: string | null;
+          created_at?: string | null;
+          email?: string | null;
+          full_name?: string | null;
+          gender?: Database["public"]["Enums"]["gender_type"] | null;
+          id?: string | null;
+          is_active?: boolean | null;
+          last_login_at?: string | null;
+          manager_id?: string | null;
+          must_change_password?: boolean | null;
+          phone?: string | null;
+          role_title?: string | null;
+          senioridade?: Database["public"]["Enums"]["senioridade_type"] | null;
+          system_role?: never;
+          updated_at?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          birth_date?: string | null;
+          cpf?: string | null;
+          created_at?: string | null;
+          email?: string | null;
+          full_name?: string | null;
+          gender?: Database["public"]["Enums"]["gender_type"] | null;
+          id?: string | null;
+          is_active?: boolean | null;
+          last_login_at?: string | null;
+          manager_id?: string | null;
+          must_change_password?: boolean | null;
+          phone?: string | null;
+          role_title?: string | null;
+          senioridade?: Database["public"]["Enums"]["senioridade_type"] | null;
+          system_role?: never;
+          updated_at?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       activate_contract_to_project: {
@@ -2470,6 +2525,10 @@ export type Database = {
         Args: { p_proposal_id: string };
         Returns: Json;
       };
+      client_accept_terms: {
+        Args: { p_user_agent?: string; p_version: string };
+        Returns: boolean;
+      };
       close_validation_round: {
         Args: { p_feedback?: string; p_round_id: string; p_status: string };
         Returns: Json;
@@ -2479,6 +2538,7 @@ export type Database = {
         Returns: string;
       };
       create_project_with_billing: { Args: { p_input: Json }; Returns: string };
+      cron_auth_header: { Args: never; Returns: Json };
       get_client_for_portal_user: {
         Args: { _user_id: string };
         Returns: {
@@ -2497,10 +2557,6 @@ export type Database = {
           cnpj: string | null;
           complemento: string | null;
           contato_secundario: string | null;
-          contract_end: string | null;
-          contract_start: string | null;
-          contract_status: Database["public"]["Enums"]["contract_status"] | null;
-          contract_type: Database["public"]["Enums"]["contract_type"] | null;
           country: string;
           cpf: string | null;
           created_at: string;
@@ -2515,24 +2571,24 @@ export type Database = {
           is_active: boolean;
           limite_credito: number | null;
           logradouro: string | null;
-          monthly_value: number;
           must_change_password: boolean;
           nome_fantasia: string | null;
           notes_internal: string | null;
           numero: string | null;
           owner_id: string | null;
-          payment_due_day: number | null;
           phone: string | null;
-          project_total_value: number;
+          privacy_accepted_at: string | null;
+          privacy_version: string | null;
           razao_social: string | null;
           regime_tributario: Database["public"]["Enums"]["regime_tributario_type"] | null;
           responsavel_financeiro: string | null;
           responsavel_financeiro_phone: string | null;
           rg: string | null;
-          scope_summary: string | null;
           sla_hours: number | null;
           state: string | null;
           tags: string[];
+          terms_accepted_at: string | null;
+          terms_version: string | null;
           updated_at: string;
           user_id: string | null;
           whatsapp: string | null;
@@ -2571,7 +2627,6 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean };
       is_admin_or_juridico: { Args: { _user_id: string }; Returns: boolean };
       mark_overdue_charges: { Args: never; Returns: undefined };
-      mark_overdue_clients_inadimplente: { Args: never; Returns: undefined };
       mark_validation_client: {
         Args: { p_client_name?: string; p_round_id: string };
         Returns: undefined;
@@ -2623,6 +2678,7 @@ export type Database = {
       };
     };
     Enums: {
+      admin_notification_severity: "info" | "success" | "warning" | "action_required";
       app_role:
         | "admin_super"
         | "admin"
@@ -2635,17 +2691,50 @@ export type Database = {
         | "juridico"
         | "designer"
         | "po";
+      billing_action_log_status: "enviado" | "falha";
+      billing_action_trigger: "cron" | "manual";
+      billing_action_type: "email" | "notificacao";
+      billing_template_type: "cobranca" | "lembrete" | "agradecimento";
       billing_type: "mensal" | "projeto";
       canal_assinatura_type: "manual" | "govbr" | "clicksign" | "docusign" | "eletronico";
+      charge_origin: "parcela_projeto" | "mensalidade" | "manual";
       client_origin: "lead" | "indicacao" | "inbound";
       contract_record_status: "rascunho" | "em_validacao" | "ativo" | "encerrado" | "cancelado";
       contract_status: "ativo" | "inadimplente" | "cancelado" | "encerrado";
       contract_type: "projeto" | "recorrente" | "hibrido";
       document_type: "contrato" | "aditivo" | "nota_fiscal" | "codigo_fonte" | "outro";
       document_visibility: "cliente" | "interno" | "ambos";
+      expense_category:
+        | "geral"
+        | "software"
+        | "infra"
+        | "marketing"
+        | "pessoal"
+        | "equipamento"
+        | "servico_terceiro"
+        | "imposto";
+      financial_goal_period: "mensal" | "trimestral" | "anual";
       forma_pagamento_type: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro";
       gender_type: "masculino" | "feminino";
       invoice_status: "pendente" | "pago" | "atrasado" | "cancelado" | "agendada";
+      lead_interaction_type: "ligacao" | "email" | "reuniao" | "whatsapp" | "nota";
+      lead_source:
+        | "inbound"
+        | "site"
+        | "formulario"
+        | "rede_social"
+        | "whatsapp"
+        | "reuniao"
+        | "indicacao"
+        | "cold"
+        | "prospeccao"
+        | "evento"
+        | "outro";
+      lead_status: "prospeccao" | "qualificado" | "proposta" | "ganho" | "perdido";
+      marketing_event_status: "planejado" | "em_producao" | "agendado" | "publicado" | "cancelado";
+      marketing_event_type: "post" | "story" | "campanha" | "reuniao" | "entrega" | "outro";
+      message_channel: "email" | "whatsapp";
+      message_delivery_status: "pending" | "sent" | "failed" | "skipped";
       next_step_action_type:
         | "geral"
         | "reuniao"
@@ -2657,6 +2746,7 @@ export type Database = {
         | "conteudo";
       next_step_owner: "elkys" | "cliente" | "compartilhado";
       next_step_status: "pendente" | "em_andamento" | "concluido" | "cancelado";
+      notification_filter_mode: "all" | "tags" | "contract_status" | "individual";
       notification_status: "rascunho" | "agendada" | "enviando" | "enviada" | "falha";
       notification_type: "manutencao" | "atualizacao" | "otimizacao" | "alerta" | "personalizado";
       pause_source: "automatico" | "manual";
@@ -2665,10 +2755,34 @@ export type Database = {
       project_installment_trigger: "assinatura" | "conclusao" | "data_fixa";
       project_installment_type: "entrada" | "entrega";
       project_pause_reason: "financeiro" | "dependencia_cliente" | "interno" | "escopo" | "outro";
+      project_stage:
+        | "Imersao e Diagnostico"
+        | "Acordo Formal"
+        | "Arquitetura"
+        | "Engenharia"
+        | "Validacao & ativacao"
+        | "Evolucao";
       project_status: "em_andamento" | "concluido" | "pausado" | "cancelado" | "negociacao";
+      proposal_status: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "expirada";
       regime_tributario_type: "mei" | "simples" | "lucro_presumido" | "lucro_real";
       senioridade_type: "estagiario" | "junior" | "pleno" | "senior" | "lead" | "gerente";
       subscription_status: "agendada" | "ativa" | "pausada" | "encerrada";
+      support_ticket_category: "bug" | "duvida" | "acesso" | "financeiro" | "conteudo" | "outro";
+      support_ticket_priority: "baixa" | "media" | "alta";
+      support_ticket_status: "aberto" | "em_andamento" | "resolvido" | "fechado";
+      ticket_message_sender: "admin" | "client";
+      timeline_source_table:
+        | "charges"
+        | "documents"
+        | "leads"
+        | "project_contracts"
+        | "project_installments"
+        | "project_next_steps"
+        | "project_subscriptions"
+        | "projects"
+        | "proposals";
+      tracking_event_type: "open" | "click";
+      validation_round_status: "em_andamento" | "aprovada" | "reprovada";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2792,11 +2906,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
+      admin_notification_severity: ["info", "success", "warning", "action_required"],
       app_role: [
         "admin_super",
         "admin",
@@ -2810,17 +2922,52 @@ export const Constants = {
         "designer",
         "po",
       ],
+      billing_action_log_status: ["enviado", "falha"],
+      billing_action_trigger: ["cron", "manual"],
+      billing_action_type: ["email", "notificacao"],
+      billing_template_type: ["cobranca", "lembrete", "agradecimento"],
       billing_type: ["mensal", "projeto"],
       canal_assinatura_type: ["manual", "govbr", "clicksign", "docusign", "eletronico"],
+      charge_origin: ["parcela_projeto", "mensalidade", "manual"],
       client_origin: ["lead", "indicacao", "inbound"],
       contract_record_status: ["rascunho", "em_validacao", "ativo", "encerrado", "cancelado"],
       contract_status: ["ativo", "inadimplente", "cancelado", "encerrado"],
       contract_type: ["projeto", "recorrente", "hibrido"],
       document_type: ["contrato", "aditivo", "nota_fiscal", "codigo_fonte", "outro"],
       document_visibility: ["cliente", "interno", "ambos"],
+      expense_category: [
+        "geral",
+        "software",
+        "infra",
+        "marketing",
+        "pessoal",
+        "equipamento",
+        "servico_terceiro",
+        "imposto",
+      ],
+      financial_goal_period: ["mensal", "trimestral", "anual"],
       forma_pagamento_type: ["pix", "boleto", "cartao", "transferencia", "dinheiro"],
       gender_type: ["masculino", "feminino"],
       invoice_status: ["pendente", "pago", "atrasado", "cancelado", "agendada"],
+      lead_interaction_type: ["ligacao", "email", "reuniao", "whatsapp", "nota"],
+      lead_source: [
+        "inbound",
+        "site",
+        "formulario",
+        "rede_social",
+        "whatsapp",
+        "reuniao",
+        "indicacao",
+        "cold",
+        "prospeccao",
+        "evento",
+        "outro",
+      ],
+      lead_status: ["prospeccao", "qualificado", "proposta", "ganho", "perdido"],
+      marketing_event_status: ["planejado", "em_producao", "agendado", "publicado", "cancelado"],
+      marketing_event_type: ["post", "story", "campanha", "reuniao", "entrega", "outro"],
+      message_channel: ["email", "whatsapp"],
+      message_delivery_status: ["pending", "sent", "failed", "skipped"],
       next_step_action_type: [
         "geral",
         "reuniao",
@@ -2833,6 +2980,7 @@ export const Constants = {
       ],
       next_step_owner: ["elkys", "cliente", "compartilhado"],
       next_step_status: ["pendente", "em_andamento", "concluido", "cancelado"],
+      notification_filter_mode: ["all", "tags", "contract_status", "individual"],
       notification_status: ["rascunho", "agendada", "enviando", "enviada", "falha"],
       notification_type: ["manutencao", "atualizacao", "otimizacao", "alerta", "personalizado"],
       pause_source: ["automatico", "manual"],
@@ -2841,10 +2989,36 @@ export const Constants = {
       project_installment_trigger: ["assinatura", "conclusao", "data_fixa"],
       project_installment_type: ["entrada", "entrega"],
       project_pause_reason: ["financeiro", "dependencia_cliente", "interno", "escopo", "outro"],
+      project_stage: [
+        "Imersao e Diagnostico",
+        "Acordo Formal",
+        "Arquitetura",
+        "Engenharia",
+        "Validacao & ativacao",
+        "Evolucao",
+      ],
       project_status: ["em_andamento", "concluido", "pausado", "cancelado", "negociacao"],
+      proposal_status: ["rascunho", "enviada", "aprovada", "rejeitada", "expirada"],
       regime_tributario_type: ["mei", "simples", "lucro_presumido", "lucro_real"],
       senioridade_type: ["estagiario", "junior", "pleno", "senior", "lead", "gerente"],
       subscription_status: ["agendada", "ativa", "pausada", "encerrada"],
+      support_ticket_category: ["bug", "duvida", "acesso", "financeiro", "conteudo", "outro"],
+      support_ticket_priority: ["baixa", "media", "alta"],
+      support_ticket_status: ["aberto", "em_andamento", "resolvido", "fechado"],
+      ticket_message_sender: ["admin", "client"],
+      timeline_source_table: [
+        "charges",
+        "documents",
+        "leads",
+        "project_contracts",
+        "project_installments",
+        "project_next_steps",
+        "project_subscriptions",
+        "projects",
+        "proposals",
+      ],
+      tracking_event_type: ["open", "click"],
+      validation_round_status: ["em_andamento", "aprovada", "reprovada"],
     },
   },
 } as const;

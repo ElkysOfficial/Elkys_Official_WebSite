@@ -751,7 +751,7 @@ export default function ProposalDetail() {
             .from("leads")
             .update({ status: "proposta", updated_at: new Date().toISOString() })
             .eq("id", form.lead_id)
-            .in("status", ["novo", "qualificado", "diagnostico"]);
+            .in("status", ["prospeccao", "qualificado"]);
         }
 
         // Timeline: record proposal sent event
@@ -803,7 +803,7 @@ export default function ProposalDetail() {
             .from("leads")
             .update({ status: "proposta", updated_at: new Date().toISOString() })
             .eq("id", form.lead_id)
-            .in("status", ["novo", "qualificado", "diagnostico"]);
+            .in("status", ["prospeccao", "qualificado"]);
         }
 
         // Timeline event

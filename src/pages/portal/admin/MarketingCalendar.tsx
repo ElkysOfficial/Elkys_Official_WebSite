@@ -749,7 +749,7 @@ export default function AdminMarketingCalendar() {
   useEffect(() => {
     const loadMembers = async () => {
       const { data, error } = await supabase
-        .from("team_members")
+        .from("team_members_with_role")
         .select("id, user_id, full_name, system_role, is_active");
       if (error || !data) return;
       const list = data as unknown as TeamMember[];

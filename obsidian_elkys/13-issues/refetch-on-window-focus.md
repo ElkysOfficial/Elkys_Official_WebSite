@@ -8,7 +8,7 @@ severity: MEDIUM
 
 ## Contexto
 
-`queryClient` em `App.tsx` usa default React Query (`refetchOnWindowFocus: true`). Cada vez que admin troca de tab, todas as queries ativas refetcham.
+`queryClient` em `PortalShell.tsx` (movido do root `App.tsx` em v3.3.2 — ver [[../12-decisions/ADR-013-query-provider-in-portalshell]]) usa default React Query (`refetchOnWindowFocus: true`). Cada vez que admin troca de tab, todas as queries ativas refetcham.
 
 ## Impacto
 
@@ -19,7 +19,7 @@ severity: MEDIUM
 ## Recomendação
 
 ```ts
-// App.tsx
+// src/pages/PortalShell.tsx
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -49,4 +49,4 @@ useQuery({ ..., refetchOnWindowFocus: true });
 
 ## Referências
 
-- `src/App.tsx`
+- `src/pages/PortalShell.tsx`

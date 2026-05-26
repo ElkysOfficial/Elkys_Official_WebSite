@@ -1245,7 +1245,9 @@ export default function AdminTasks() {
           "id, title, description, status, priority, category, assigned_to, role_visibility, due_date, starts_at, ends_at, google_event_id, google_meet_link, created_by, created_at"
         )
         .order("created_at", { ascending: false }),
-      supabase.from("team_members").select("id, user_id, full_name, system_role, is_active"),
+      supabase
+        .from("team_members_with_role")
+        .select("id, user_id, full_name, system_role, is_active"),
     ]);
 
     if (tasksRes.error || membersRes.error) {

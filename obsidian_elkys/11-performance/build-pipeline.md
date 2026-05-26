@@ -31,7 +31,9 @@ tags: [performance, build, vite]
 
 5. Entry inlining
    └─ entry.js (~27KB gzip) inlined em HTML
-       + modulepreload hints para react-vendor + query-vendor
+       + modulepreload hint para react-vendor (único vendor que o
+         entry importa de forma estática; query-vendor saiu em v3.3.2
+         — ver ADR-013)
 
 6. scripts/generate-sitemap.cjs
    └─ sitemap.xml com routes públicas + dynamic /servicos/:slug
@@ -55,18 +57,28 @@ tags: [performance, build, vite]
 
 ```ts
 manualChunks(id) {
-  if (id.includes('node_modules/recharts')) return 'recharts-vendor'
-  if (id.includes('node_modules/@supabase')) return 'supabase-vendor'
-  if (id.includes('node_modules/react-hook-form') ||
-      id.includes('node_modules/zod')) return 'form-vendor'
-  if (id.includes('node_modules/react') ||
-      id.includes('node_modules/react-dom') ||
-      id.includes('node_modules/react-router-dom') ||
-      id.includes('node_modules/@tanstack')) return 'react-vendor'
+  if (!id.includes('node_modules')) return
+  if (id.includes('/node_modules/recharts/')) return 'recharts-vendor'
+  if (id.includes('/node_modules/@supabase/supabase-js/')) return 'supabase-vendor'
+  if (id.includes('/node_modules/@tanstack/react-query/')) return 'query-vendor'
+  if (id.includes('/node_modules/react-hook-form/') ||
+      id.includes('/node_modules/@hookform/') ||
+      id.includes('/node_modules/zod/')) return 'form-vendor'
+  // clsx + tailwind-merge fixados em react-vendor (senão o Rollup os
+  // posiciona no recharts-vendor e a landing baixa libs de gráfico)
+  if (id.includes('/node_modules/clsx/') ||
+      id.includes('/node_modules/tailwind-merge/')) return 'react-vendor'
+  if (id.includes('/node_modules/react/') ||
+      id.includes('/node_modules/react-dom/') ||
+      id.includes('/node_modules/react-router-dom/') ||
+      id.includes('/node_modules/react-router/') ||
+      id.includes('/node_modules/scheduler/')) return 'react-vendor'
 }
 ```
 
 ⚠️ Função, **não** objeto — ver [[../12-decisions/ADR-005-manualchunks-pitfall]] e a memória `project_manualchunks_gotcha`.
+
+`@tanstack/react-query` tem chunk próprio (`query-vendor`), não cai em `react-vendor`. Desde v3.3.2 ele só carrega no portal (lazy via `PortalShell`) — ver [[../12-decisions/ADR-013-query-provider-in-portalshell]].
 
 ## Imagens
 
@@ -95,6 +107,7 @@ manualChunks(id) {
 - [[css-splitting]]
 - [[../12-decisions/ADR-005-manualchunks-pitfall]]
 - [[../12-decisions/ADR-009-css-splitting-purgecss]]
+- [[../12-decisions/ADR-013-query-provider-in-portalshell]]
 - [[../09-infra/deployment]]
 
 ## Referências

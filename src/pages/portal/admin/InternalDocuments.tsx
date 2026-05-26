@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type Audience = "marketing_design" | "developer";
-type InternalTeamDocument = Database["public"]["Tables"]["internal_team_documents"]["Row"];
+type InternalTeamDocument = Database["public"]["Tables"]["documents"]["Row"];
 
 const AUDIENCE_META: Record<
   Audience,
@@ -92,7 +92,7 @@ export default function AdminInternalDocuments({ audience }: { audience: Audienc
     setPageError(null);
 
     const { data, error } = await supabase
-      .from("internal_team_documents")
+      .from("documents")
       .select("*")
       .eq("audience", audience)
       .order("created_at", { ascending: false });
@@ -127,13 +127,15 @@ export default function AdminInternalDocuments({ audience }: { audience: Audienc
 
     setSaving(true);
 
-    const { error } = await supabase.from("internal_team_documents").insert({
+    const { error } = await supabase.from("documents").insert({
       audience,
+      client_id: null,
+      type: "outro",
+      visibility: "interno",
       label: form.label.trim(),
-      type_label: form.type_label.trim(),
+      description: form.type_label.trim(),
       url: form.url.trim(),
-      created_by: user?.id ?? null,
-      updated_at: new Date().toISOString(),
+      uploaded_by: user?.id ?? null,
     });
 
     setSaving(false);
@@ -155,10 +157,7 @@ export default function AdminInternalDocuments({ audience }: { audience: Audienc
 
     setRemoving(true);
 
-    const { error } = await supabase
-      .from("internal_team_documents")
-      .delete()
-      .eq("id", deleteDocumentId);
+    const { error } = await supabase.from("documents").delete().eq("id", deleteDocumentId);
 
     setRemoving(false);
 
@@ -297,7 +296,7 @@ export default function AdminInternalDocuments({ audience }: { audience: Audienc
                       {document.label}
                     </p>
                     <span className="shrink-0 rounded-full border border-border/50 bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {document.type_label}
+                      {document.description}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">

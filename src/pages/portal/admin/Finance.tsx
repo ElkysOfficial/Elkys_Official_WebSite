@@ -63,9 +63,18 @@ import {
 } from "@/lib/portal";
 import {
   BURN_RATE_WINDOW_MONTHS,
+  computeAgingBuckets,
   computeBurnRate,
+  computeForecastRevenue,
   computeOperationalMargin,
+  computePipelineSummary,
   computeRunway,
+  isProjectOverdue,
+  MARGIN_HEALTHY_PCT,
+  MARGIN_NEUTRAL_PCT,
+  OPEN_TICKETS_WARNING_THRESHOLD,
+  RUNWAY_DANGER_MONTHS,
+  RUNWAY_WARNING_MONTHS,
 } from "@/lib/finance-metrics";
 import { syncSubscriptionCharges } from "@/lib/sync-subscription-charges";
 import {
@@ -1681,6 +1690,7 @@ function FinanceAnaliseTab() {
       contractsRes,
       ticketsRes,
       proposalsRes,
+      leadsRes,
     ] = await Promise.all([
       supabase.from("clients").select("id, is_active, client_since"),
       supabase
@@ -1706,8 +1716,9 @@ function FinanceAnaliseTab() {
       supabase.from("support_tickets").select("id, status, created_at"),
       supabase
         .from("proposals")
-        .select("id, total_amount, status")
+        .select("id, lead_id, total_amount, status")
         .in("status", ["enviada", "aprovada"]),
+      supabase.from("leads").select("id, status, estimated_value").eq("status", "proposta"),
     ]);
 
     const err =
@@ -1718,7 +1729,8 @@ function FinanceAnaliseTab() {
       expensesRes.error ??
       contractsRes.error ??
       ticketsRes.error ??
-      proposalsRes.error;
+      proposalsRes.error ??
+      leadsRes.error;
     if (err) {
       setLoading(false);
       return;
@@ -1868,36 +1880,8 @@ function FinanceAnaliseTab() {
       ...Array.from(clientsWithoutRecurring),
     ]).size;
 
-    // Aging — only charges already past due (future pending charges are not yet receivable)
-    const agingCharges = charges.filter(
-      (c) =>
-        (c.status === "pendente" || c.status === "atrasado") &&
-        !c.is_historical &&
-        c.due_date &&
-        c.due_date <= todayStr
-    );
-    const agingBuckets: AgingBucket[] = [
-      { range: "0-30 dias", amount: 0, count: 0 },
-      { range: "30-60 dias", amount: 0, count: 0 },
-      { range: "60+ dias", amount: 0, count: 0 },
-    ];
-    agingCharges.forEach((c) => {
-      const due = new Date(c.due_date + "T00:00:00");
-      const days = Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
-      const amtCents = toCents(c.amount);
-      if (days <= 30) {
-        agingBuckets[0].amount += amtCents;
-        agingBuckets[0].count += 1;
-      } else if (days <= 60) {
-        agingBuckets[1].amount += amtCents;
-        agingBuckets[1].count += 1;
-      } else {
-        agingBuckets[2].amount += amtCents;
-        agingBuckets[2].count += 1;
-      }
-    });
-    // Convert centavos back to reais
-    for (const bucket of agingBuckets) bucket.amount /= 100;
+    // Aging — fonte unica em src/lib/finance-metrics.ts (testada).
+    const agingBuckets = computeAgingBuckets(charges, now, todayStr);
 
     // Projects
     const projectStatusCounts: Record<ProjectBucket, number> = {
@@ -1913,13 +1897,8 @@ function FinanceAnaliseTab() {
       if (bucket in projectStatusCounts) projectStatusCounts[bucket] += 1;
     });
 
-    const overdueProjects = projects.filter(
-      (p) =>
-        p.status === "em_andamento" &&
-        p.expected_delivery_date &&
-        p.expected_delivery_date < todayStr &&
-        !p.delivered_at
-    ).length;
+    // Atrasado — fonte unica em src/lib/finance-metrics.ts (testada).
+    const overdueProjects = projects.filter((p) => isProjectOverdue(p, todayStr)).length;
 
     const completedThisMonth = projects.filter((p) => {
       if (p.status !== "concluido") return false;
@@ -1940,21 +1919,28 @@ function FinanceAnaliseTab() {
         ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
         : null;
 
-    // Pipeline: projects in negociacao (contracts) + active proposals (enviadas/aprovadas)
-    const negIds = new Set(projects.filter((p) => p.status === "negociacao").map((p) => p.id));
-    const pipeContracts = contracts.filter(
-      (c) => negIds.has(c.project_id) && c.status !== "cancelado"
-    );
-    const projectPipelineValue =
-      pipeContracts.reduce((s, c) => s + toCents(c.total_amount), 0) / 100;
-
-    type ProposalPipeline = { id: string; total_amount: number; status: string };
+    // Pipeline — fonte unica em src/lib/finance-metrics.ts (testada).
+    type ProposalPipeline = {
+      id: string;
+      lead_id: string | null;
+      total_amount: number;
+      status: string;
+    };
+    type LeadPipeline = { id: string; status: string; estimated_value: number };
     const allProposals = (proposalsRes.data ?? []) as ProposalPipeline[];
-    // Only "enviada" proposals count toward pipeline — "aprovada" already have a project+contract
-    const pendingProposals = allProposals.filter((p) => p.status === "enviada");
-    const proposalPipelineValue =
-      pendingProposals.reduce((s, p) => s + toCents(p.total_amount), 0) / 100;
-    const pipelineValue = projectPipelineValue + proposalPipelineValue;
+    const leadsPipeline = (leadsRes.data ?? []) as LeadPipeline[];
+    const pipelineSummary = computePipelineSummary(
+      allProposals,
+      leadsPipeline,
+      contracts.map((c) => ({
+        id: c.id,
+        project_id: c.project_id,
+        total_amount: c.total_amount,
+        status: c.status,
+      })),
+      projects.map((p) => ({ id: p.id, status: p.status }))
+    );
+    const pipelineValue = pipelineSummary.value;
 
     // Burn rate via lib central (mesmo numero do Overview).
     const burnRate = computeBurnRate(monthlySeries, BURN_RATE_WINDOW_MONTHS);
@@ -1981,11 +1967,22 @@ function FinanceAnaliseTab() {
       charges
         .filter((c) => c.status === "atrasado" && !c.is_historical)
         .reduce((s, c) => s + toCents(c.amount), 0) / 100;
-    // Forecast: only future agendada charges (due_date after today)
-    const agendadaCharges = charges.filter(
-      (c) => c.status === "agendada" && !c.is_historical && c.due_date > todayStr
+    // Forecast — fonte unica em src/lib/finance-metrics.ts (testada).
+    const forecastRevenue = computeForecastRevenue(
+      charges.map((c) => ({
+        status: c.status,
+        is_historical: c.is_historical,
+        due_date: c.due_date,
+        amount: c.amount,
+      })),
+      contracts.map((c) => ({
+        id: c.id,
+        project_id: c.project_id,
+        total_amount: c.total_amount,
+        status: c.status,
+      })),
+      todayStr
     );
-    const forecastRevenue = agendadaCharges.reduce((s, c) => s + toCents(c.amount), 0) / 100;
 
     const curMonth = monthlySeries[monthlySeries.length - 1];
     const currentMonthNet = curMonth?.net ?? 0;
@@ -2043,7 +2040,7 @@ function FinanceAnaliseTab() {
       avgDeliveryDays,
       projectStatusCounts,
       pipelineValue,
-      pipelineCount: negIds.size + pendingProposals.length,
+      pipelineCount: pipelineSummary.count,
       openTickets,
       resolvedTicketsThisMonth,
       monthlySeries,
@@ -2109,7 +2106,6 @@ function FinanceAnaliseTab() {
             type="button"
             variant="outline"
             size="sm"
-            size="sm"
             onClick={handleManualSync}
             disabled={syncing}
           >
@@ -2144,9 +2140,9 @@ function FinanceAnaliseTab() {
             tone={
               state.operationalMargin === null
                 ? "neutral"
-                : state.operationalMargin >= 20
+                : state.operationalMargin >= MARGIN_HEALTHY_PCT
                   ? "success"
-                  : state.operationalMargin >= 0
+                  : state.operationalMargin >= MARGIN_NEUTRAL_PCT
                     ? "warning"
                     : "destructive"
             }
@@ -2201,9 +2197,9 @@ function FinanceAnaliseTab() {
             tone={
               state.runwayMonths === null
                 ? "neutral"
-                : state.runwayMonths < 3
+                : state.runwayMonths < RUNWAY_DANGER_MONTHS
                   ? "destructive"
-                  : state.runwayMonths < 6
+                  : state.runwayMonths < RUNWAY_WARNING_MONTHS
                     ? "warning"
                     : "success"
             }
@@ -2339,7 +2335,7 @@ function FinanceAnaliseTab() {
           <SurfaceStat
             label="Tickets abertos"
             value={`${state.openTickets}`}
-            tone={state.openTickets > 5 ? "warning" : "neutral"}
+            tone={state.openTickets > OPEN_TICKETS_WARNING_THRESHOLD ? "warning" : "neutral"}
           />
           <SurfaceStat
             label="Resolvidos no mes"

@@ -9,16 +9,16 @@ tags: [issues, debt, moc]
 
 ## 🔴 HIGH
 
-| #   | Issue                                                                     | Categoria      |
-| --- | ------------------------------------------------------------------------- | -------------- |
-| H1  | [[no-observability]] — Sem Sentry/PostHog em prod                         | observability  |
-| H2  | [[no-tests-units-integration]] — Apenas E2E, sem Vitest                   | testing        |
-| H3  | [[security-roles-in-db]] — Roles em `user_roles`, não JWT (SPOF)          | auth           |
-| H4  | [[security-csp-missing]] — Sem Content-Security-Policy                    | security       |
-| ~~H5~~ | ✅ Resolvido — [[_resolved/charges-status-agendada-stuck]] (cron promove `agendada → pendente`) | data-integrity |
-| ~~H6~~ | ✅ Resolvido — [[_resolved/dead-pages]] (páginas reorganizadas em `src/pages/portal/admin/`)    | tech-debt      |
-| H7  | [[colors-hardcoded-tasks]] — Tasks.tsx com 8+ cores Tailwind cruas        | DS             |
-| H8  | [[no-staging-environment]] — `develop` sem host separado                  | DX/safety      |
+| #      | Issue                                                                                                    | Categoria      |
+| ------ | -------------------------------------------------------------------------------------------------------- | -------------- |
+| H1     | [[no-observability]] — Sem Sentry/PostHog em prod                                                        | observability  |
+| ~~H2~~ | ✅ Resolvido — [[_resolved/2026-05-financial-metrics-audit]] (Vitest + 121 testes nos cálculos críticos) | testing        |
+| H3     | [[security-roles-in-db]] — Roles em `user_roles`, não JWT (SPOF)                                         | auth           |
+| H4     | [[security-csp-missing]] — Sem Content-Security-Policy                                                   | security       |
+| ~~H5~~ | ✅ Resolvido — [[_resolved/charges-status-agendada-stuck]] (cron promove `agendada → pendente`)          | data-integrity |
+| ~~H6~~ | ✅ Resolvido — [[_resolved/dead-pages]] (páginas reorganizadas em `src/pages/portal/admin/`)             | tech-debt      |
+| H7     | [[colors-hardcoded-tasks]] — Tasks.tsx com 8+ cores Tailwind cruas                                       | DS             |
+| H8     | [[no-staging-environment]] — `develop` sem host separado                                                 | DX/safety      |
 
 ## 🟠 MEDIUM
 
@@ -57,6 +57,12 @@ tags: [issues, debt, moc]
 | L6  | [[no-environment-banner]] — sem indicação de staging/dev visual      | DX        |
 | L7  | [[tasks-priorities-hardcoded]] — `bg-red-500`, `bg-orange-500`, etc. | DS        |
 | L8  | [[eyebrow-typography-divergent]] — `text-[10px]` vs `text-[11px]`    | DS        |
+
+## Auditoria 2026-05-25
+
+- [[_audit-2026-05-25/00-RELATORIO-FINAL|Relatório completo de modelagem]] — 37 tabelas + 3 views, 80 sec warnings, 256 perf issues, plano 3 ondas
+- [[_audit-2026-05-25/02-advisors|Advisors do Supabase Linter]] — raw
+- [[_audit-2026-05-25/03-codigo-vs-schema|Divergências código vs schema]]
 
 ## Convenções
 

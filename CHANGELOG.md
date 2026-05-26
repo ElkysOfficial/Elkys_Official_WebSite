@@ -3,6 +3,207 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O versionamento segue a política descrita em `docs/VERSIONING.md`.
 
+## [3.5.0] - 2026-05-26
+
+Auditoria completa de modelagem do banco + refactor estrutural seguindo o
+relatório em `obsidian_elkys/13-issues/_audit-2026-05-25/`. Quebras de schema
+e código aplicadas em conjunto para manter consistência entre frontend e DB.
+
+### Auditoria (Onda 1) — quick wins de segurança e performance
+
+- 4 índices/constraints duplicados removidos (`user_roles`, `client_contacts`,
+  `project_installments`, `projects`).
+- 9 funções com `search_path mutable` agora têm `SET search_path = public,
+pg_catalog` (previne hijack via objeto malicioso).
+- 49 índices criados em FKs sem cobertura (advisor `unindexed_foreign_keys`).
+- ~95 policies RLS reescritas trocando `auth.uid()` por `(SELECT auth.uid())`
+  para forçar initplan caching (advisor `auth_rls_initplan`).
+- 6 cron jobs migrados para Vault: secret `cron_function_bearer` em
+  `vault.secrets`, helper `public.cron_auth_header()` lê em runtime.
+  `SELECT` em `cron.job` revogado de `anon`/`authenticated`.
+- Buckets `email-assets` e `profile-photos` com listagem restrita (URLs
+  públicas via `public=true` continuam funcionando).
+
+### Auditoria (Onda 2) — consolidações estruturais
+
+- ~50 policies permissivas duplicadas consolidadas em 1 por (table, action)
+  com OR (advisor `multiple_permissive_policies`: 76 → 25).
+- DELETE policies explícitas em 7 tabelas operacionais; RESTRICTIVE deny em
+  `legal_acceptance_log`, `project_contract_versions`, `audit_logs`.
+- CHECK exclusive-arc em `timeline_events.source_*`, `team_tasks` (FKs
+  principais), `communications.entity_id`.
+- 8 FKs padronizadas: `expenses` e `proposals.lead_id` agora `SET NULL`;
+  `billing_actions_log.charge_id` agora `CASCADE`.
+- Trigger `fn_cleanup_auth_user_orphans` em `AFTER DELETE auth.users` limpa
+  ~25 colunas que referenciam o usuário sem FK formal.
+- **25 enums tipados** substituindo `text + CHECK` em `leads`, `proposals`,
+  `support_tickets`, `charges`, `projects`, `expenses`,
+  `marketing_calendar_events`, `notifications`, `billing_*`, `tracked_links`,
+  `tracking_events`, `communications`, `timeline_events`, `ticket_messages`,
+  `project_validation_rounds`, `admin_notifications`, `financial_goals`.
+
+### Auditoria (Onda 3) — refactor de modelagem
+
+- **DROP `internal_team_documents`** + adicionado `audience` e `client_id
+nullable` em `documents`. Unificação completa; UI `InternalDocuments.tsx`
+  migrada para `documents` com filtro de audience.
+- **DROP 8 colunas snapshot mortas em `clients`**: `monthly_value`,
+  `project_total_value`, `contract_status`, `contract_type`,
+  `contract_start`, `contract_end`, `scope_summary`, `payment_due_day`.
+  Trigger guard `fn_guard_clients_legacy_snapshots` removido. Frontend lê
+  exclusivamente da view `client_financial_summary` (campos `*_calculated`).
+- **DROP `team_members.system_role`**; nova view `team_members_with_role`
+  expõe `system_role` derivado de `user_roles` (fonte única).
+
+### Código adaptado
+
+- `src/hooks/useAdminClients.ts`: select sem colunas mortas; merge final
+  vem 100% da view calculada.
+- `src/pages/portal/admin/ClientDetail.tsx`: fallbacks `client.X` removidos
+  (snapshots mortos não existem mais); rendering só usa
+  `summary?.X_calculated` + entidades primárias (`project_contracts`).
+- `src/pages/portal/admin/Team.tsx`, `TeamCreate.tsx`, `TeamEdit.tsx`,
+  `Tasks.tsx`, `MarketingCalendar.tsx`: leituras passam pela view
+  `team_members_with_role`; escritas em `team_members` sem mais
+  `system_role`; rollback de delete sem o campo.
+- `src/pages/portal/admin/InternalDocuments.tsx`: queries em `documents`
+  com `audience` + mapeamento `type_label → description`.
+- `supabase/functions/send-invoice-due/index.ts`: status de inadimplência
+  vem da view `client_financial_summary.contract_status_calculated`.
+- `supabase/functions/_shared/notification-sender.ts`: filtro
+  `contract_status` agora resolve `client_id`s via view antes de aplicar.
+- `src/integrations/supabase/types.ts`: regenerado pelo MCP refletindo
+  schema novo (sem colunas mortas, com enums, com view nova).
+
+### Resultado dos advisors
+
+| Categoria   | Inicial | Final | Δ           |
+| ----------- | ------- | ----- | ----------- |
+| Security    | 80      | 69    | −11 (−14%)  |
+| Performance | 256     | 100   | −156 (−61%) |
+
+O que sobra é "by design": 68 advisors de `security_definer_function_executable`
+(helpers de RLS + RPCs precisam de SECURITY DEFINER) + 1 HIBP (toggle manual
+no painel). Performance: 75 unused_index (48 são os FK indexes novos, ainda
+sem load) + 25 `multiple_permissive` por dimensão de role `anon` vs
+`authenticated` (falso positivo do advisor).
+
+### Validação
+
+- `npx tsc --noEmit` ✓
+- `npm test` ✓ 121/121 testes Vitest
+- `npx eslint` ✓ nos 11 arquivos modificados
+- `npm run format:check` ✓
+- `npm run build` ✓ bundle 32.64s
+
+### ⚠️ Ação manual pendente
+
+Ativar HaveIBeenPwned password protection em
+**Supabase Dashboard → Auth → Settings → Password Protection** (não
+acessível via MCP).
+
+## [3.4.2] - 2026-05-23
+
+UX dos seletores de período padronizada — "Mês atual" pré-selecionado.
+
+### UX
+
+- Botões de período no Overview (Receita & fluxo de caixa) e Forecast
+  (Previsão de receita) agora abrem com `1` pré-selecionado por default
+  (antes era `6M`). Label `1M` foi substituído por **"Mês atual"** no
+  histórico e **"Próximo mês"** no forecast — semanticamente mais claro
+  do que o número genérico.
+- Label "Crescimento do MRR (1M)" vira "Crescimento do MRR (Mês atual)"
+  quando `selectedPeriod=1`.
+- RevenueByClient já tinha o padrão "Mês atual" desde v3.4.0; agora o
+  comportamento é consistente em todo o portal admin.
+
+## [3.4.1] - 2026-05-23
+
+Hotfix da v3.4.0 — corrige ReferenceError que quebrava a aba Análise do Finance.
+
+### Correções
+
+- `pipelineCount` no `loadAnalise` da aba Análise (`/portal/admin/financeiro`)
+  ainda referenciava variáveis intermediárias (`negIds`, `pendingProposals`,
+  `leadsInProposta`) que foram removidas no refactor pra `computePipelineSummary`.
+  Resultado: `Uncaught (in promise) ReferenceError: negIds is not defined`
+  derrubando a tela inteira. Troca de 1 linha pra `pipelineSummary.count`.
+- Causa-raiz do não-pegar-no-CI: projeto tem `strict: false` em
+  `tsconfig.app.json` — issue separada vai propor migrar pra strict.
+
+## [3.4.0] - 2026-05-23
+
+Auditoria minuciosa em 5 fases sobre todos os cálculos financeiros e do CRM
+do portal admin. 14 bugs corrigidos, 17 funções centralizadas em libs novas
+com 121 testes Vitest. Funil de leads simplificado. Duas migrations no
+Supabase. ADR-014 registrando o novo padrão.
+
+### Funil de leads simplificado
+
+- Status de lead reduzidos para 5 etapas:
+  `prospeccao → qualificado → proposta → ganho/perdido`. Removidos `novo`,
+  `diagnostico` e `negociacao`. Migration `lead_status_simplify_flow_v3`
+  remapeou os dados existentes. Pipeline (CRM) reescrito com 5 colunas
+  seguindo esse funil — projetos deixam de aparecer no pipeline (têm
+  `/portal/admin/projetos` próprio).
+
+### Métricas centralizadas (novo)
+
+- Criadas `src/lib/finance-metrics.ts` (13 funções + 11 constantes) e
+  `src/lib/crm-metrics.ts` (4 funções). Setup Vitest novo com `npm test` /
+  `npm test:watch`, 121 testes em ~500ms cobrindo edge cases (div/0, null,
+  dedup, IEEE-754 em centavos). ADR-014 documenta a decisão.
+
+### Bugs corrigidos
+
+- **Forecast divergente** entre Overview e Finance — Overview somava
+  propostas aprovadas (com double-count após contrato ativar); Finance só
+  agendadas. Ambos agora consomem `computeForecastRevenue` (charges
+  agendadas + contratos rascunho).
+- **`pipelineCount` esquecia leads em proposta** no Finance.
+- **`overdueProjects` divergente** — Projects.tsx incluía status
+  `negociacao`/`pausado`; Overview/Finance só `em_andamento`. Unificado
+  via `isProjectOverdue`.
+- **Form do ClientDetail mostrava status legacy** enquanto o header
+  mostrava `client_financial_summary.contract_status_calculated` (view).
+  `deriveContractSnapshot` agora recebe o summary e prioriza a fonte de
+  verdade calculada.
+- **`Conversion rate` em Leads** trocada de `ganho/total` (penaliza
+  abertos) para `ganho/(ganho+perdido)` (padrão CRM).
+- **`Approval rate` de Propostas** passou a incluir `expirada` como
+  rejeição implícita no denominador.
+- **`Top sources` em Leads** agora normaliza casing/whitespace.
+- **`newLast7Days`** valida `Number.isFinite` para datas inválidas.
+- **`Delinquency`** usa constantes `AGING_BUCKET_30/60` da lib em vez de
+  thresholds hardcoded.
+- **Label "1M" em RevenueByClient** renomeada para "Mês atual" e
+  pré-selecionada como default.
+- **`<Button size="sm" size="sm">`** duplicado em Finance.tsx removido.
+
+### Backend (Supabase)
+
+- **Migration `drop_dead_rpc_mark_overdue_clients_inadimplente`** —
+  removida RPC órfã desde v2.89.1 (cron desagendado pq guard P-18
+  bloqueava UPDATE em snapshot legacy). Verificadas zero referências
+  em crons, RPCs, triggers, views, RLS, frontend e edge functions.
+- **Migration `approve_proposal_idempotent_via_source_link`** — corrige
+  bug crítico onde duplo-clique em "Aprovar proposta" criava 2 contratos
+  - 2 tarefas pro jurídico + 2 notificações + 2 timeline events. Nova
+    coluna `project_contracts.source_proposal_id` (FK pra proposals) +
+    backfill via timeline_events + index parcial. RPC reescrita pra
+    detectar reentrada e retornar contrato existente.
+
+### Limitações conhecidas
+
+- E2E Playwright (`npm run test:e2e`) precisa ser executado manualmente
+  antes da validação real.
+- 3 contratos legados ficaram sem `source_proposal_id` (não tinham event
+  `proposta_aprovada` na timeline). Perdem idempotência retroativa, mas
+  já estão criados e não são afetados por novas aprovações.
+- Edge functions de email/tracking (`send-*`, `check-*`, `track`) não
+  auditadas em profundidade — fora do escopo desta auditoria.
+
 ## [3.3.2] - 2026-05-21
 
 Otimização do bundle inicial: React Query sai do carregamento da landing.

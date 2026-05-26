@@ -55,6 +55,7 @@ Sem Zustand, Redux, MobX, Jotai, Recoil.
 
 - [[../07-frontend/state-strategy]]
 - [[../07-frontend/hooks]]
+- [[ADR-013-query-provider-in-portalshell]] — onde o `QueryClientProvider` é montado
 - `useUrlState`, `useFormDraftAutoSave`
 
 ## Referências

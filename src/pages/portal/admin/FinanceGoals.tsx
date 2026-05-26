@@ -9,6 +9,7 @@ import { Button, Card, CardContent, Input, Label, Field, Textarea, cn } from "@/
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { computeGoalProgress } from "@/lib/finance-metrics";
 import { formatBRL, getLocalDateIso, maskCurrency, toCents, unmaskCurrency } from "@/lib/masks";
 
 type GoalRow = Database["public"]["Tables"]["financial_goals"]["Row"];
@@ -173,7 +174,7 @@ export default function FinanceGoals() {
   const goalsWithActual = useMemo(() => {
     return filteredGoals.map((goal) => {
       const actual = getActualForPeriod(goal.period_start, goal.period_end);
-      const percent = goal.target_amount > 0 ? (actual / goal.target_amount) * 100 : 0;
+      const percent = computeGoalProgress(actual, goal.target_amount);
       return { ...goal, actual, percent };
     });
   }, [filteredGoals, getActualForPeriod]);

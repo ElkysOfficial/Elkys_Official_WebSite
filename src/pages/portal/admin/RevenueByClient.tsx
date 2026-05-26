@@ -10,6 +10,7 @@ import { Button, Card, cn } from "@/design-system";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { exportCSV, exportPDF, type ExportColumn } from "@/lib/export";
+import { computeTicketAverage } from "@/lib/finance-metrics";
 import { formatBRL, getLocalDateIso, toCents } from "@/lib/masks";
 import { getClientDisplayName } from "@/lib/portal";
 
@@ -33,8 +34,10 @@ type ClientRevenue = {
 
 type PeriodOption = 1 | 3 | 6 | 9 | 12 | 0;
 
+// "Mês atual" diferencia da janela rolling 3M/6M/etc:
+// value=1 vai do dia 1 do mes ate hoje (calendar), nao "ultimos 30 dias".
 const PERIOD_OPTIONS: { value: PeriodOption; label: string }[] = [
-  { value: 1, label: "1M" },
+  { value: 1, label: "Mês atual" },
   { value: 3, label: "3M" },
   { value: 6, label: "6M" },
   { value: 9, label: "9M" },
@@ -60,7 +63,9 @@ export default function RevenueByClient() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<PeriodOption>(6);
+  // Default = Mes atual (value=1): visao "o que entrou ate agora" abre primeiro,
+  // usuario expande pra janelas maiores se quiser comparativo.
+  const [period, setPeriod] = useState<PeriodOption>(1);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -128,7 +133,7 @@ export default function RevenueByClient() {
           client,
           totalRevenue: total,
           chargeCount: revenue.count,
-          ticketMedio: revenue.count > 0 ? total / revenue.count : 0,
+          ticketMedio: computeTicketAverage(total, revenue.count),
           percentOfTotal: grandTotalCents > 0 ? (revenue.totalCents / grandTotalCents) * 100 : 0,
         };
       })
@@ -138,10 +143,14 @@ export default function RevenueByClient() {
   }, [charges, clients, period]);
 
   const grandTotal = useMemo(() => ranking.reduce((sum, r) => sum + r.totalRevenue, 0), [ranking]);
-  const avgTicket = useMemo(() => {
-    const totalCharges = ranking.reduce((sum, r) => sum + r.chargeCount, 0);
-    return totalCharges > 0 ? grandTotal / totalCharges : 0;
-  }, [ranking, grandTotal]);
+  const avgTicket = useMemo(
+    () =>
+      computeTicketAverage(
+        grandTotal,
+        ranking.reduce((sum, r) => sum + r.chargeCount, 0)
+      ),
+    [ranking, grandTotal]
+  );
 
   const exportColumns: ExportColumn[] = [
     { key: "position", label: "Posicao", align: "center" },

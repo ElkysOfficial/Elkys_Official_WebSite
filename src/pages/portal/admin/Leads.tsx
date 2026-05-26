@@ -26,6 +26,11 @@ import { Button, Card, CardContent, Input, Field, Label, Textarea, cn } from "@/
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  computeLeadConversionRate,
+  computeNewLeadsInWindow,
+  computeTopLeadSources,
+} from "@/lib/crm-metrics";
 import { exportCSV, exportPDF, type ExportColumn } from "@/lib/export";
 import { formatBRL, maskCurrency, unmaskCurrency, maskPhone, toCents } from "@/lib/masks";
 import { formatPortalDate } from "@/lib/portal";
@@ -33,25 +38,16 @@ import { toast } from "sonner";
 
 type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
 
-type LeadStatus =
-  | "novo"
-  | "qualificado"
-  | "diagnostico"
-  | "proposta"
-  | "negociacao"
-  | "ganho"
-  | "perdido";
+type LeadStatus = "prospeccao" | "qualificado" | "proposta" | "ganho" | "perdido";
 
 const STATUS_META: {
   key: LeadStatus;
   label: string;
   tone: "secondary" | "accent" | "primary" | "warning" | "success" | "destructive";
 }[] = [
-  { key: "novo", label: "Novo", tone: "secondary" },
+  { key: "prospeccao", label: "Prospecção", tone: "secondary" },
   { key: "qualificado", label: "Qualificado", tone: "accent" },
-  { key: "diagnostico", label: "Diagnóstico", tone: "primary" },
   { key: "proposta", label: "Proposta", tone: "primary" },
-  { key: "negociacao", label: "Negociação", tone: "warning" },
   { key: "ganho", label: "Ganho", tone: "success" },
   { key: "perdido", label: "Perdido", tone: "destructive" },
 ];
@@ -70,21 +66,17 @@ const LEAD_STATUS_OPTIONS: InlineStatusOption<LeadStatus>[] = STATUS_META.map((s
 }));
 
 const COLUMN_ACCENT: Record<LeadStatus, string> = {
-  novo: "border-t-secondary",
+  prospeccao: "border-t-secondary",
   qualificado: "border-t-accent",
-  diagnostico: "border-t-primary",
   proposta: "border-t-primary",
-  negociacao: "border-t-warning",
   ganho: "border-t-success",
   perdido: "border-t-destructive",
 };
 
 const COLUMN_COUNT_BG: Record<LeadStatus, string> = {
-  novo: "bg-secondary/15 text-secondary-foreground",
+  prospeccao: "bg-secondary/15 text-secondary-foreground",
   qualificado: "bg-accent/15 text-accent",
-  diagnostico: "bg-primary/15 text-primary",
   proposta: "bg-primary/15 text-primary",
-  negociacao: "bg-warning/15 text-warning",
   ganho: "bg-success/15 text-success",
   perdido: "bg-destructive/15 text-destructive",
 };
@@ -325,7 +317,7 @@ export default function Leads() {
       source: formSource,
       estimated_value: formValue ? unmaskCurrency(formValue) : 0,
       notes: formNotes.trim() || null,
-      status: "novo",
+      status: "prospeccao",
       probability: 0,
       created_by: user?.id ?? null,
     });
@@ -346,44 +338,32 @@ export default function Leads() {
   // Metrics
   const totalLeads = leads.length;
 
+  // Pipeline = leads em 'proposta' (mesma definicao usada em Overview/Financeiro:
+  // "proposta em diante", excluindo prospeccao/qualificado/ganho/perdido).
   const pipelineValue = useMemo(
     () =>
       leads
-        .filter((l) => l.status !== "perdido" && l.status !== "ganho")
+        .filter((l) => l.status === "proposta")
         .reduce((sum, l) => sum + toCents(l.estimated_value ?? 0), 0) / 100,
     [leads]
   );
 
-  const conversionRate = useMemo(() => {
-    if (totalLeads === 0) return 0;
-    const ganhos = leads.filter((l) => l.status === "ganho").length;
-    return Math.round((ganhos / totalLeads) * 100);
-  }, [leads, totalLeads]);
+  // Taxa de conversao: ganho / (ganho + perdido) — fonte unica testada.
+  // Veja docstring de computeLeadConversionRate.
+  const conversionRate = useMemo(() => computeLeadConversionRate(leads), [leads]);
 
-  const newLast7Days = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
-    return leads.filter((l) => l.created_at && new Date(l.created_at).getTime() >= cutoff).length;
-  }, [leads]);
+  // Janela rolling 7d — fonte unica testada.
+  const newLast7Days = useMemo(() => computeNewLeadsInWindow(leads, 7, new Date()), [leads]);
 
-  const topSources = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const l of leads) {
-      const s = l.source?.trim() || "nao_informada";
-      counts[s] = (counts[s] ?? 0) + 1;
-    }
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-  }, [leads]);
+  // Top fontes normalizadas (trim + lowercase) — fonte unica testada.
+  const topSources = useMemo(() => computeTopLeadSources(leads, 3), [leads]);
 
   // Grouped for Kanban
   const grouped = useMemo(() => {
     const map: Record<LeadStatus, LeadRow[]> = {
-      novo: [],
+      prospeccao: [],
       qualificado: [],
-      diagnostico: [],
       proposta: [],
-      negociacao: [],
       ganho: [],
       perdido: [],
     };
@@ -603,7 +583,7 @@ export default function Leads() {
           value={formatBRL(pipelineValue)}
           icon={TrendingUp}
           tone="accent"
-          hint="Excluindo ganhos e perdidos"
+          hint="Leads em proposta"
         />
         <MetricTile
           label="Taxa de conversao"
@@ -679,7 +659,7 @@ export default function Leads() {
           collisionDetection={closestCorners}
           onDragEnd={(e) => void handleDragEnd(e)}
         >
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
             {STATUS_META.map((col) => {
               const columnLeads = grouped[col.key] ?? [];
               const columnTotal = columnLeads.reduce(
